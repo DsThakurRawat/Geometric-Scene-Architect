@@ -12,18 +12,21 @@ The focus is on spatial reasoning, clustering, and rule-based labeling.
 ## Tasks
 
 ### 1. Dataset & Preprocessing
+
 - Use `.ply` or `.pcd` files from **S3DIS** or any indoor 3D scene dataset.
 - Apply preprocessing steps:
     - **Denoising** (e.g., statistical or radius outlier removal).
     - **Voxel downsampling** to reduce point density.
 
 ### 2. Scene Segmentation
+
 - Apply clustering:
     - Options: **DBSCAN, Euclidean clustering**, or similar methods.
 - Assign **unique colors** to clusters for visualization.
 - Optionally filter clusters by size/shape to remove noise blobs.
 
 ### 3. Rule-Based Labeling (Optional but Recommended)
+
 - Implement simple geometric heuristics:
     - **Floor** — Lowest large flat horizontal surface.
     - **Ceiling** — Highest large flat horizontal surface.
@@ -31,6 +34,7 @@ The focus is on spatial reasoning, clustering, and rule-based labeling.
     - **Furniture** — Mid-height clusters with moderate horizontal spread.
 
 ### 4. Visualization
+
 - Visualize segmented scenes with **color-coded clusters**.
 - Save/export final segmented point cloud as `.ply` or `.pcd` with colors.
 
@@ -55,8 +59,8 @@ The focus is on spatial reasoning, clustering, and rule-based labeling.
 ## Contact Info
 
 - **Name**: Divyansh Rawat
-- **Contact number**: [Your Contact Number]
-- **Email address**: [Your Email Address]
+- **Contact number**: 6261283255, 8239603324
+- **Email address**: divyanshrawatofficial@gmail.com, divyanshthakur594@gmail.com
 
 ---
 
