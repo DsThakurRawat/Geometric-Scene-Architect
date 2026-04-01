@@ -1,0 +1,40 @@
+preprocessing:
+  voxel_size: 0.03          # Reduced from 0.05 for better detail
+  sor:
+    nb_neighbors: 20        # Statistical Outlier Removal neighbors
+    std_ratio: 2.0          # SOR standard deviation ratio
+  normal_estimation:
+    radius: 0.1             # Normal estimation neighborhood radius
+    max_nn: 30              # Max neighbors for normals
+    orient_k: 15            # Neighbors for consistent orientation
+
+ransac:
+  distance_threshold: 0.02  # Max distance from point to plane
+  ransac_n: 3               # Minimum points to define a plane (constant 3)
+  num_iterations: 2000      # Max iterations for plane detection
+  min_plane_size: 1000      # Min number of points for a valid plane
+  max_planes: 10            # Stop after detecting this many planes
+  remaining_points_min: 500 # Stop if fewer points are left to process
+
+dbscan:
+  eps: 0.15                 # Increased from 0.10 for better connectivity
+  min_points: 20            # Reduced from 50
+  min_cluster_points: 30    # Reduced from 100
+  max_object_size: 3.0      # Max dimension (m) to reject large blobs
+
+labeling:
+  floor_z_threshold: 0.15   # Max Z centroid for a floor plane
+  ceiling_z_fraction: 0.8   # Min Z centroid (as fraction of scene height) for ceiling
+  horizontal_angle_deg: 15  # Max angle (deg) with vertical for horizontal planes
+  vertical_angle_deg: 75    # Min angle (deg) with vertical for vertical planes
+  # Cluster Labeling
+  tall_furniture_min_h: 1.5
+  furniture_min_footprint: 0.3
+  furniture_min_h: 0.3
+  small_object_max_footprint: 0.5
+  high_fixture_min_z: 1.5
+
+output:
+  ply: "outputs/segmented_room.ply"
+  report: "outputs/segmentation_report.json"
+  screenshot: "outputs/segmentation_viz.png"

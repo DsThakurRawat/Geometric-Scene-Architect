@@ -1,0 +1,34 @@
+preprocessing:
+  voxel_size: 0.03          # Fine resolution for synthetic (no scanner noise)
+  sor:
+    nb_neighbors: 10        # Lower for clean synthetic data
+    std_ratio: 3.0          # More lenient — synthetic has less noise
+  normal_estimation:
+    radius: 0.1
+    max_nn: 30
+    orient_k: 10
+
+ransac:
+  distance_threshold: 0.01  # Tighter — synthetic planes are perfectly flat
+  ransac_n: 3
+  num_iterations: 1000
+  min_plane_size: 50        # Lower — synthetic objects are smaller
+  max_planes: 10
+  remaining_points_min: 50
+
+dbscan:
+  eps: 0.15
+  min_points: 15
+  min_cluster_points: 20
+  max_object_size: 3.5
+
+labeling:
+  floor_z_threshold: 0.15
+  ceiling_z_fraction: 0.8
+  horizontal_angle_deg: 15
+  vertical_angle_deg: 75
+
+output:
+  ply: "outputs/debug_segmented.ply"
+  report: "outputs/debug_report.json"
+  screenshot: "outputs/debug_viz.png"
