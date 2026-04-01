@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 3D Data
+data/raw/
+data/processed/
+data/synthetic/
+outputs/
+*.ply
+*.pcd
+*.pcd.bin
+*.ply.bin
+
+# Project Specific
+.DS_Store
