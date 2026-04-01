@@ -10,20 +10,20 @@ Once the assignment is complete, you **must** reply to the recruitment email wit
 - **Full Name**: Divyansh Rawat
 - **GitHub Username**: DsThakurRawat
 - **Contact**: 6261283255 / 8239603324
-- **Email**: divyanshrawatofficial@gmail.com / divyanshthakur594@gmail.com
+- **Email**: <divyanshrawatofficial@gmail.com> / <divyanshthakur594@gmail.com>
 
 **CC the following individuals in your reply:**
-- `parmeet.software@ericrobotics.com`
-- `shubham.petkar@ericrobotics.com`
-- `abhishek.singh@ericrobotics.com`
+- `<parmeet.software@ericrobotics.com>`
+- `<shubham.petkar@ericrobotics.com>`
+- `<abhishek.singh@ericrobotics.com>`
 
 ### README.md Requirements
 
 - **Header**: Ensure your full name is in the assignment title/header.
 - **Contact Info**: Add a "Contact Info" section at the bottom containing:
-    - Name
-    - Contact number(s)
-    - Email address(es)
+  - Name
+  - Contact number(s)
+  - Email address(es)
 
 ---
 
@@ -32,16 +32,16 @@ Once the assignment is complete, you **must** reply to the recruitment email wit
 ### Core Tasks
 
 1. **Dataset & Preprocessing**:
-    - Use `.ply` or `.pcd` files (S3DIS or equivalent).
-    - Apply denoising (SOR/Radius) and voxel downsampling.
+  - Use `.ply` or `.pcd` files (S3DIS or equivalent).
+  - Apply denoising (SOR/Radius) and voxel downsampling.
 2. **Scene Segmentation**:
-    - Apply **unsupervised clustering** (DBSCAN, Euclidean, etc.).
-    - Use **geometry-based methods only** (No Deep Learning).
-    - Assign unique colors to clusters.
+  - Apply **unsupervised clustering** (DBSCAN, Euclidean, etc.).
+  - Use **geometry-based methods only** (No Deep Learning).
+  - Assign unique colors to clusters.
 3. **Semantic Labeling**:
-    - Implement geometric heuristics for **Floor, Ceiling, Walls, and Furniture**.
+  - Implement geometric heuristics for **Floor, Ceiling, Walls, and Furniture**.
 4. **Visualization**:
-    - Export final colored scene as a `.ply` file.
+  - Export final colored scene as a `.ply` file.
 
 ### Extra Credit Features (Already Implemented)
 

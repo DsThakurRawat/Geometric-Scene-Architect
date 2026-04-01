@@ -76,20 +76,21 @@ class Exporter:
         for i, plane in enumerate(planes):
             report["structural_planes"].append(
                 {
-                    "id": i,
+                    "plane_id": i,
                     "label": plane.get("label", "unknown"),
                     "inlier_count": plane.get("inlier_count", 0),
                     "centroid_z": plane.get("centroid_z", 0.0),
                     "normal": [round(v, 5) for v in plane.get("normal", [0, 0, 0])],
+                    "plane_model": [round(v, 5) for v in plane.get("plane_model", [0, 0, 0, 0])],
                 }
             )
 
         for i, cluster in enumerate(clusters):
             obj: Dict = {
-                "id": i,
+                "cluster_id": i,
                 "label": cluster.get("label", "unknown"),
                 "n_points": cluster.get("n_points", 0),
-                "dims_m": [round(v, 4) for v in cluster.get("dims", [0, 0, 0])],
+                "dims": [round(v, 4) for v in cluster.get("dims", [0, 0, 0])],
                 "centroid": [round(v, 4) for v in cluster.get("centroid", [0, 0, 0])],
                 "z_min": round(cluster.get("z_min", 0.0), 4),
                 "z_max": round(cluster.get("z_max", 0.0), 4),
@@ -97,7 +98,7 @@ class Exporter:
             }
             # Include OBB info if available
             if "obb_extent" in cluster:
-                obj["obb_extent_m"] = [round(v, 4) for v in cluster["obb_extent"]]
+                obj["obb_extent"] = [round(v, 4) for v in cluster["obb_extent"]]
                 obj["obb_rotation_deg"] = round(cluster.get("obb_rotation_deg", 0.0), 2)
             report["objects"].append(obj)
 
