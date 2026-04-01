@@ -1,0 +1,72 @@
+import open3d as o3d
+from typing import Dict, Tuple
+
+
+class Preprocessor:
+    """
+    Module 2: Preprocessing Pipeline
+    Handles denoising, downsampling, and normal estimation.
+    """
+
+    def __init__(self, config: Dict):
+        self.cfg = config.get("preprocessing", {})
+
+    def voxel_downsample(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
+        """Reduces point density using voxel downsampling."""
+        voxel_size = float(self.cfg.get("voxel_size", 0.05))
+        if voxel_size <= 0:
+            raise ValueError(f"voxel_size must be > 0, got {voxel_size}")
+        return pcd.voxel_down_sample(voxel_size=voxel_size)
+
+    def remove_statistical_outliers(
+        self, pcd: o3d.geometry.PointCloud
+    ) -> Tuple[o3d.geometry.PointCloud, o3d.geometry.PointCloud]:
+        """
+        Removes floating scan noise via Statistical Outlier Removal.
+        Returns (clean_pcd, outlier_pcd). If the input has too few points
+        (< nb_neighbors + 1), returns (pcd, empty_pcd) without filtering.
+        """
+        sor_cfg = self.cfg.get("sor", {})
+        nb_neighbors = int(sor_cfg.get("nb_neighbors", 20))
+        std_ratio = float(sor_cfg.get("std_ratio", 2.0))
+
+        empty = o3d.geometry.PointCloud()
+
+        if len(pcd.points) <= nb_neighbors:
+            # Too few points to compute statistics — return as-is
+            return pcd, empty
+
+        cl, ind = pcd.remove_statistical_outlier(
+            nb_neighbors=nb_neighbors, std_ratio=std_ratio
+        )
+        clean_pcd = pcd.select_by_index(ind)
+        outlier_pcd = pcd.select_by_index(ind, invert=True)
+
+        # Guard: if SOR removes everything, return original
+        if len(clean_pcd.points) == 0:
+            return pcd, outlier_pcd
+
+        return clean_pcd, outlier_pcd
+
+    def estimate_normals(self, pcd: o3d.geometry.PointCloud) -> None:
+        """
+        Estimates surface normals. Safe to call on small clouds:
+        if fewer than (orient_k + 1) points exist, orientation step is skipped.
+        """
+        norm_cfg = self.cfg.get("normal_estimation", {})
+        radius = float(norm_cfg.get("radius", 0.1))
+        max_nn = int(norm_cfg.get("max_nn", 30))
+        orient_k = int(norm_cfg.get("orient_k", 15))
+
+        if len(pcd.points) == 0:
+            return
+
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(
+                radius=radius, max_nn=max_nn
+            )
+        )
+
+        # Orient only if enough neighbours exist
+        if len(pcd.points) > orient_k:
+            pcd.orient_normals_consistent_tangent_plane(k=orient_k)
