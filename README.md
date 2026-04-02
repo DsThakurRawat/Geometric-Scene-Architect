@@ -8,6 +8,14 @@ A production-grade, **geometry-only** pipeline for 3D indoor scene semantic segm
 
 ---
 
+## 📖 Documentation
+
+For a deep-dive into the project's logic and architecture, please refer to the following:
+- [**Technical Pipeline Guide (PIPELINE.md)**](PIPELINE.md): Installation, usage, and geometric heuristics.
+- [**Implementation Roadmap (implementation.md)**](implementation.md): Full architectural breakdown and research references.
+
+---
+
 ## 📸 Visual Results
 
 | Final Semantic Segmentation | 2D Top-Down Projection |
