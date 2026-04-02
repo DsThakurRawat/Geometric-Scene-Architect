@@ -1,4 +1,4 @@
-# 3D Room Scene Semantic Segmentation 🚀
+# 3D Room Scene Semantic Segmentation Assignment- Divyansh Rawat
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Open3D](https://img.shields.io/badge/Open3D-0.19.0-green.svg)](http://www.open3d.org/)
@@ -60,16 +60,19 @@ pip install -r requirements.txt
 
 ### 1. Generate Synthetic Data
 Perfect for immediate testing:
+
 ```bash
 python3 scripts/generate_synthetic_room.py --output data/synthetic/room_01.ply
 ```
 
 ### 2. Run the Full Pipeline
+
 ```bash
 python3 main.py --input data/synthetic/room_01.ply --config configs/default.yaml
 ```
 
 ### 3. Open Interactive Viewer
+
 ```bash
 python3 -m src.interactive_viewer --input outputs/segmented_room.ply
 ```
@@ -94,7 +97,13 @@ python3 -m pytest tests/ -v
 
 ---
 
-## 👤 Author
-**Divyansh Rawat**  
-ML Engineer | 3D Vision Enthusiast  
-📧 [divyanshrawatofficial@gmail.com](mailto:divyanshrawatofficial@gmail.com) | 📞 +91 6261283255
+## 📞 Contact Info
+
+- **Name**: Divyansh Rawat
+- **Contact number(s)**: +91 6261283255 / +91 8239603324
+- **Email address(es)**: [divyanshrawatofficial@gmail.com](mailto:divyanshrawatofficial@gmail.com), [divyanshthakur594@gmail.com](mailto:divyanshthakur594@gmail.com)
+- **GitHub Username**: DsThakurRawat
+
+---
+
+*Good luck! This assignment will test your ability to reason about geometry and clustering in 3D scenes.*
