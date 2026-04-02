@@ -76,7 +76,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Core libraries
-pip install open3d==0.18.0        # point cloud I/O, DBSCAN, RANSAC, visualization
+pip install open3d==0.19.0        # point cloud I/O, DBSCAN, RANSAC, visualization
 pip install numpy scipy           # array ops, spatial stats, PCA
 pip install scikit-learn          # KMeans fallback, silhouette scoring
 pip install matplotlib            # 2D top-down map plots

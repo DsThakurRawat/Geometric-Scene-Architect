@@ -1,67 +1,100 @@
-# 3D Room Scene Semantic Segmentation Assignment- Divyansh Rawat
+# 3D Room Scene Semantic Segmentation 🚀
 
-In this assignment, you'll work with **3D indoor point clouds** and design a pipeline to segment room scenes into meaningful components (floor, walls, ceiling, furniture) using **geometry-based clustering only** — no deep learning.
-The focus is on spatial reasoning, clustering, and rule-based labeling.
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![Open3D](https://img.shields.io/badge/Open3D-0.19.0-green.svg)](http://www.open3d.org/)
+[![Geometry Only](https://img.shields.io/badge/Stack-Geometry--Only-orange.svg)](https://en.wikipedia.org/wiki/Rule-based_system)
 
-## Objective
-
-- Segment 3D room scenes into components using **unsupervised clustering**.
-- Use only geometry-based methods (no training, no neural networks).
-- Explore rules and heuristics to assign semantic labels to clusters.
-
-## Tasks
-
-### 1. Dataset & Preprocessing
-
-- Use `.ply` or `.pcd` files from **S3DIS** or any indoor 3D scene dataset.
-- Apply preprocessing steps:
-  - **Denoising** (e.g., statistical or radius outlier removal).
-  - **Voxel downsampling** to reduce point density.
-
-### 2. Scene Segmentation
-
-- Apply clustering:
-  - Options: **DBSCAN, Euclidean clustering**, or similar methods.
-- Assign **unique colors** to clusters for visualization.
-- Optionally filter clusters by size/shape to remove noise blobs.
-
-### 3. Rule-Based Labeling (Optional but Recommended)
-
-- Implement simple geometric heuristics:
-  - **Floor** — Lowest large flat horizontal surface.
-  - **Ceiling** — Highest large flat horizontal surface.
-  - **Walls** — Large vertical planes.
-  - **Furniture** — Mid-height clusters with moderate horizontal spread.
-
-### 4. Visualization
-
-- Visualize segmented scenes with **color-coded clusters**.
-- Save/export final segmented point cloud as `.ply` or `.pcd` with colors.
-
-## Optional (Extra Credit)
-
-- Automatic semantic labeling based on orientation, position, size.
-- Compute **bounding boxes and dimensions** for furniture.
-- Generate a **2D top-down map** by projecting clusters onto the ground plane.
-- Build an **interactive viewer** (Open3D GUI or PyQT) for manual inspection/labeling.
-
-## Submission and deadline
-
-- Submit your work by committing your code to this repository within 3 days of accepting the assignment.
-- Submissions made to personal repositories will not be reviewed; ensure all work is pushed to the designated repository provided for you.
-
-## 💡 Notes
-
-- Keep it **geometry-only** — no pretrained models or deep learning.
-- Visual clarity matters; screenshots should clearly show separated components.
-- Rule-based labeling doesn't need to be perfect — simple heuristics are fine.
-
-## Contact Info
-
-- **Name**: Divyansh Rawat
-- **Contact number**: 6261283255, 8239603324
-- **Email address**: <divyanshrawatofficial@gmail.com>, <divyanshthakur594@gmail.com>
+A production-grade, **geometry-only** pipeline for 3D indoor scene semantic segmentation. This project segments raw point clouds into structural elements (floor, walls, ceiling) and furniture objects using unsupervised clustering and rule-based heuristics — **zero deep learning required.**
 
 ---
 
-Good luck! This assignment will test your ability to reason about **geometry and clustering** in 3D scenes.
+## 📸 Visual Results
+
+| Final Semantic Segmentation | 2D Top-Down Projection |
+| :---: | :---: |
+| ![Final Segmentation](docs/images/final_segmentation.png) | ![Top-Down Map](docs/images/debug_segmentation.png) |
+| *Color-coded: Floor (Brown), Walls (Blue), Furniture (Green)* | *Occupancy grid with identified furniture footprints* |
+
+---
+
+## 🔥 Key Features
+
+- **Structural Segmentation**: Iterative RANSAC with normal-alignment checks for floor, ceiling, and walls.
+- **Object Clustering**: DBSCAN-based clustering for furniture and clutter.
+- **Semantic Heuristics**: Automatic labeling based on Z-distribution, surface normals, and aspect-ratio analysis.
+- **Bounding Boxes**: Axis-Aligned (AABB) and Oriented (OBB) bounding box estimation with dimensions.
+- **Interactive Viewer**: Custom GUI for real-time manual inspection and labeling.
+- **2D Mapping**: Automated generation of top-down occupancy and semantic maps.
+- **Robust Testing**: 143+ unit and integration tests covering the entire pipeline.
+
+---
+
+## 🏗️ Architecture Overview
+
+The pipeline follows a two-stage expert system approach to ensure clean separation between structural surfaces and furniture:
+
+1.  **Stage A (Structural)**: Uses **RANSAC** to "peel" away high-density planar primitives (floor, walls, ceiling).
+2.  **Stage B (Object)**: Performs **DBSCAN** Euclidean clustering on the non-planar residuals to isolate individual furniture units.
+3.  **Stage C (Refinement)**: Computes geometric properties (centroids, dimensions, orientation) for the final semantic report.
+
+---
+
+## 🛠️ Installation & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/ERICR-recruiter/l02-DsThakurRawat.git
+cd l02-DsThakurRawat
+
+# Setup environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+---
+
+## 🚀 Quickstart
+
+### 1. Generate Synthetic Data
+Perfect for immediate testing:
+```bash
+python3 scripts/generate_synthetic_room.py --output data/synthetic/room_01.ply
+```
+
+### 2. Run the Full Pipeline
+```bash
+python3 main.py --input data/synthetic/room_01.ply --config configs/default.yaml
+```
+
+### 3. Open Interactive Viewer
+```bash
+python3 -m src.interactive_viewer --input outputs/segmented_room.ply
+```
+
+---
+
+## 📊 Technical Results & Outputs
+
+Every run produces a standard artifacts bundle in the `outputs/` directory:
+- **`segmented_room.ply`**: Fully labeled 3D point cloud.
+- **`segmentation_report.json`**: Pydantic-validated JSON containing IDs, dimensions, and labels for all clusters.
+- **`segmentation_viz.png`**: High-resolution 2D semantic map.
+
+---
+
+## 🧪 Testing
+
+The project maintains a rigorous test suite with **143 tests** covering all geometric heuristics.
+```bash
+python3 -m pytest tests/ -v
+```
+
+---
+
+## 👤 Author
+**Divyansh Rawat**  
+ML Engineer | 3D Vision Enthusiast  
+📧 [divyanshrawatofficial@gmail.com](mailto:divyanshrawatofficial@gmail.com) | 📞 +91 6261283255
