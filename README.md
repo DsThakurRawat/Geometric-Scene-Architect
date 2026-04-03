@@ -8,9 +8,10 @@ A production-grade, **geometry-only** pipeline for 3D indoor scene semantic segm
 
 ---
 
-## 📖 Documentation
+## Documentation
 
 For a deep-dive into the project's logic and architecture, please refer to the following:
+
 - [**Technical Pipeline Guide (PIPELINE.md)**](PIPELINE.md): Installation, usage, and geometric heuristics.
 - [**Implementation Roadmap (implementation.md)**](implementation.md): Full architectural breakdown and research references.
 
@@ -18,9 +19,9 @@ For a deep-dive into the project's logic and architecture, please refer to the f
 
 ## 📸 Visual Results
 
-| Final Semantic Segmentation | 2D Top-Down Projection |
-| :---: | :---: |
-| ![Final Segmentation](docs/images/final_segmentation.png) | ![Top-Down Map](docs/images/debug_segmentation.png) |
+|                   Final Semantic Segmentation                   |                 2D Top-Down Projection                 |
+| :-------------------------------------------------------------: | :-----------------------------------------------------: |
+|     ![Final Segmentation](docs/images/final_segmentation.png)     |    ![Top-Down Map](docs/images/debug_segmentation.png)    |
 | *Color-coded: Floor (Brown), Walls (Blue), Furniture (Green)* | *Occupancy grid with identified furniture footprints* |
 
 ---
@@ -41,9 +42,9 @@ For a deep-dive into the project's logic and architecture, please refer to the f
 
 The pipeline follows a two-stage expert system approach to ensure clean separation between structural surfaces and furniture:
 
-1.  **Stage A (Structural)**: Uses **RANSAC** to "peel" away high-density planar primitives (floor, walls, ceiling).
-2.  **Stage B (Object)**: Performs **DBSCAN** Euclidean clustering on the non-planar residuals to isolate individual furniture units.
-3.  **Stage C (Refinement)**: Computes geometric properties (centroids, dimensions, orientation) for the final semantic report.
+1. **Stage A (Structural)**: Uses **RANSAC** to "peel" away high-density planar primitives (floor, walls, ceiling).
+2. **Stage B (Object)**: Performs **DBSCAN** Euclidean clustering on the non-planar residuals to isolate individual furniture units.
+3. **Stage C (Refinement)**: Computes geometric properties (centroids, dimensions, orientation) for the final semantic report.
 
 ---
 
@@ -67,6 +68,7 @@ pip install -r requirements.txt
 ## 🚀 Quickstart
 
 ### 1. Generate Synthetic Data
+
 Perfect for immediate testing:
 
 ```bash
@@ -90,6 +92,7 @@ python3 -m src.interactive_viewer --input outputs/segmented_room.ply
 ## 📊 Technical Results & Outputs
 
 Every run produces a standard artifacts bundle in the `outputs/` directory:
+
 - **`segmented_room.ply`**: Fully labeled 3D point cloud.
 - **`segmentation_report.json`**: Pydantic-validated JSON containing IDs, dimensions, and labels for all clusters.
 - **`segmentation_viz.png`**: High-resolution 2D semantic map.
@@ -99,6 +102,7 @@ Every run produces a standard artifacts bundle in the `outputs/` directory:
 ## 🧪 Testing
 
 The project maintains a rigorous test suite with **143 tests** covering all geometric heuristics.
+
 ```bash
 python3 -m pytest tests/ -v
 ```
