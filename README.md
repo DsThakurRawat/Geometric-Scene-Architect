@@ -112,8 +112,8 @@ python3 -m pytest tests/ -v
 ## 📞 Contact Info
 
 - **Name**: Divyansh Rawat
-- **Contact number(s)**: +91 6261283255 / +91 8239603324
-- **Email address(es)**: [divyanshrawatofficial@gmail.com](mailto:divyanshrawatofficial@gmail.com), [divyanshthakur594@gmail.com](mailto:divyanshthakur594@gmail.com)
+- **Contact number(s)**: +91 6261283255 
+- **Email address(es)**: [divyanshthakur594@gmail.com](mailto:divyanshthakur594@gmail.com)
 - **GitHub Username**: DsThakurRawat
 
 ---
