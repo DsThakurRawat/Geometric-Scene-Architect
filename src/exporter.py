@@ -2,7 +2,10 @@ import open3d as o3d
 import json
 import os
 import copy
+import logging
 from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class Exporter:
@@ -50,7 +53,7 @@ class Exporter:
 
         self._safe_makedirs(output_path)
         o3d.io.write_point_cloud(output_path, merged)
-        print(f"Exported PLY: {output_path}  ({len(merged.points):,} points)")
+        logger.info(f"Exported PLY: {output_path}  ({len(merged.points):,} points)")
         return output_path
 
     # ── JSON report ──────────────────────────────────────────────────────
@@ -106,14 +109,14 @@ class Exporter:
         with open(output_path, "w") as f:
             json.dump(report, f, indent=4)
 
-        print(f"Exported report: {output_path}")
+        logger.info(f"Exported report: {output_path}")
 
         # ── Optional: Runtime Pydantic Validation ──────────────────────────
         from src.models import SegmentationReport
         try:
             SegmentationReport(**report)
-            print("  [Validation] JSON report satisfies Pydantic schema.")
+            logger.debug("  [Validation] JSON report satisfies Pydantic schema.")
         except Exception as e:
-            print(f"  [Validation Warning] Exported report does not strictly match schema: {e}")
+            logger.warning(f"  [Validation Warning] Exported report does not strictly match schema: {e}")
 
         return output_path

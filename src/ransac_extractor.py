@@ -1,6 +1,9 @@
 import open3d as o3d
 import numpy as np
+import logging
 from typing import Dict, List, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class IterativeRANSAC:
@@ -75,7 +78,7 @@ class IterativeRANSAC:
                 }
             )
 
-            print(
+            logger.info(
                 f"  Plane {i + 1}: {len(pts)} pts | "
                 f"normal=[{plane_model[0]:.3f}, {plane_model[1]:.3f}, {plane_model[2]:.3f}]"
             )

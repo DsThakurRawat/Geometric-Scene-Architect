@@ -1,5 +1,8 @@
 import numpy as np
+import logging
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class BoundingBoxEstimator:
@@ -43,7 +46,7 @@ class BoundingBoxEstimator:
                 cluster["obb_extent"] = dims.tolist()
                 cluster["obb_rotation_deg"] = 0.0
 
-            print(
+            logger.debug(
                 f"  [{cluster.get('label', '?')}] id={cluster['label_id']} "
                 f"W={dims[0]:.2f}m D={dims[1]:.2f}m H={dims[2]:.2f}m "
                 f"yaw={cluster['obb_rotation_deg']:.1f}°"

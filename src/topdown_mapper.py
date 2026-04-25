@@ -4,9 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import os
+import logging
 from typing import Dict, List, Optional
 
 from src.semantic_labeler import LABEL_COLORS
+
+logger = logging.getLogger(__name__)
 
 
 class TopDownMapper:
@@ -48,7 +51,7 @@ class TopDownMapper:
                 all_xy.append(pts[:, :2])
 
         if not all_xy:
-            print("TopDownMapper: nothing to draw (no planes or clusters).")
+            logger.info("TopDownMapper: nothing to draw (no planes or clusters).")
             return None
 
         combined_xy = np.vstack(all_xy)
@@ -128,5 +131,5 @@ class TopDownMapper:
             os.makedirs(parent, exist_ok=True)
         plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="#1a1a2e")
         plt.close(fig)
-        print(f"Top-down map saved to: {output_path}")
+        logger.info(f"Top-down map saved to: {output_path}")
         return output_path

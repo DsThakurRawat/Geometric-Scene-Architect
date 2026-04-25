@@ -1,6 +1,9 @@
 import open3d as o3d
 import numpy as np
+import logging
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 class DBSCANClusterer:
@@ -35,11 +38,11 @@ class DBSCANClusterer:
 
         if labels.size == 0 or labels.max() < 0:
             # All points classified as noise (-1)
-            print("DBSCAN: no clusters found (all points are noise).")
+            logger.info("DBSCAN: no clusters found (all points are noise).")
             return []
 
         max_label = int(labels.max())
-        print(f"DBSCAN found {max_label + 1} raw cluster(s) (before filtering).")
+        logger.debug(f"DBSCAN found {max_label + 1} raw cluster(s) (before filtering).")
 
         clusters: List[Dict] = []
         for i in range(max_label + 1):
@@ -78,5 +81,5 @@ class DBSCANClusterer:
 
         # Sort by size descending so dominant objects come first
         clusters.sort(key=lambda c: c["n_points"], reverse=True)
-        print(f"Retained {len(clusters)} cluster(s) after size filtering.")
+        logger.info(f"Retained {len(clusters)} cluster(s) after size filtering.")
         return clusters

@@ -1,9 +1,12 @@
 import open3d as o3d
 import copy
 import os
+import logging
 from typing import Dict, List
 
 from src.semantic_labeler import LABEL_COLORS
+
+logger = logging.getLogger(__name__)
 
 
 class Visualizer:
@@ -39,7 +42,7 @@ class Visualizer:
         """Opens an interactive 3D viewer. Closes when the user presses Q."""
         geometries = self.get_geometries(planes, clusters)
         if not geometries:
-            print("Visualizer: nothing to show.")
+            logger.info("Visualizer: nothing to show.")
             return
         o3d.visualization.draw_geometries(
             geometries,
@@ -64,7 +67,7 @@ class Visualizer:
 
         geometries = self.get_geometries(planes, clusters)
         if not geometries:
-            print("Visualizer: nothing to screenshot.")
+            logger.info("Visualizer: nothing to screenshot.")
             return
 
         try:
@@ -76,7 +79,7 @@ class Visualizer:
             vis.update_renderer()
             vis.capture_screen_image(output_path)
             vis.destroy_window()
-            print(f"Screenshot saved to: {output_path}")
+            logger.info(f"Screenshot saved to: {output_path}")
         except Exception as e:
-            print(f"Warning: Could not save screenshot ({e}). "
-                  "Try running with a virtual display (Xvfb) on headless servers.")
+            logger.warning(f"Could not save screenshot ({e}). "
+                          "Try running with a virtual display (Xvfb) on headless servers.")
