@@ -1,5 +1,11 @@
 """
 conftest.py — shared pytest fixtures for all test modules.
+
+Fixture categories:
+    - Basic clouds:     Minimal point clouds for unit-level module tests.
+    - Config fixtures:  Pre-built pipeline configuration dicts.
+    - Factories:        Helper functions (not fixtures) that create planes/clusters
+                        with controllable geometry for parametrised tests.
 """
 import pytest
 import numpy as np
@@ -10,7 +16,14 @@ import open3d as o3d
 
 @pytest.fixture
 def random_pcd(tmp_path):
-    """200 random points, written to a temp .ply."""
+    """200 uniformly random points saved as a temp .ply file.
+
+    Returns:
+        str: Absolute path to the generated .ply file.
+
+    Used by:
+        - test_loader.py (load / validate / format-detection tests)
+    """
     rng = np.random.default_rng(0)
     pts = rng.uniform(0, 1, (200, 3)).astype(np.float32)
     pcd = o3d.geometry.PointCloud()
@@ -22,7 +35,18 @@ def random_pcd(tmp_path):
 
 @pytest.fixture
 def flat_floor_pcd():
-    """Dense horizontal floor plane at Z~0 — used by test_ransac.py."""
+    """Dense horizontal floor plane (3000 pts) centred at Z≈0 with σ=0.005 noise.
+
+    Geometry:
+        X ∈ [0, 5], Y ∈ [0, 6], Z ∈ N(0, 0.005)
+
+    Returns:
+        o3d.geometry.PointCloud: In-memory cloud (no file on disk).
+
+    Used by:
+        - test_ransac.py (single-plane extraction tests)
+        - test_preprocessor.py (normal estimation on a known surface)
+    """
     rng = np.random.default_rng(1)
     x = rng.uniform(0, 5, 3000)
     y = rng.uniform(0, 6, 3000)
@@ -36,9 +60,22 @@ def flat_floor_pcd():
 
 @pytest.fixture
 def synthetic_room_pcd(tmp_path):
-    """
-    Minimal synthetic room: floor + ceiling + 2 walls + 1 furniture box.
-    Written to a temp .ply and returned as (path, pcd) tuple.
+    """Minimal synthetic room with known geometry for integration tests.
+
+    Layout:
+        - Floor   (2000 pts): Z ≈ 0.0, 5m × 6m
+        - Ceiling (2000 pts): Z ≈ 3.0, 5m × 6m
+        - Wall X=0 (1500 pts): vertical plane
+        - Wall X=5 (1500 pts): vertical plane
+        - Desk    (600 pts):  box at X∈[1,2.5], Y∈[1,2], Z∈[0,0.75]
+
+    Returns:
+        tuple[str, o3d.geometry.PointCloud]:
+            (path_to_ply, in_memory_cloud)
+
+    Used by:
+        - test_pipeline.py (end-to-end integration tests)
+        - test_exporter.py (PLY merge + JSON report tests)
     """
     rng = np.random.default_rng(99)
     pts = []
@@ -79,6 +116,18 @@ def synthetic_room_pcd(tmp_path):
 
 @pytest.fixture
 def base_cfg():
+    """Baseline pipeline config dict with relaxed thresholds for small test clouds.
+
+    Key differences from production (configs/default.yaml):
+        - voxel_size=0.05 (larger → fewer points → faster tests)
+        - min_plane_size=100  (production=1000; test clouds are small)
+        - min_cluster_points=20  (production=100)
+        - orient_k=5  (production=15; avoids errors on tiny clouds)
+        - output paths are empty strings (tests override via tmp_path)
+
+    Returns:
+        dict: Full pipeline config ready for any module constructor.
+    """
     return {
         "preprocessing": {
             "voxel_size": 0.05,
@@ -116,6 +165,20 @@ def base_cfg():
 # ── Cluster / plane factories ─────────────────────────────────────────────────
 
 def make_plane(normal, centroid_z, n_pts=200):
+    """Factory: creates a plane-result dict matching IterativeRANSAC output shape.
+
+    Args:
+        normal:     3-element list [nx, ny, nz] — the plane's surface normal.
+        centroid_z: Median Z value of the plane (controls floor/ceiling/wall classification).
+        n_pts:      Number of random points in the inlier cloud.
+
+    Returns:
+        dict with keys: plane_model, inlier_cloud, inlier_count, normal, centroid_z.
+
+    Used by:
+        - test_semantic_labeler.py (plane label assignment tests)
+        - test_exporter.py (report serialisation tests)
+    """
     rng = np.random.default_rng(7)
     pts = rng.uniform(0, 1, (n_pts, 3)).astype(np.float32)
     pts[:, 2] += centroid_z
@@ -131,6 +194,23 @@ def make_plane(normal, centroid_z, n_pts=200):
 
 
 def make_cluster(z_min, z_max, dims, n_pts=200):
+    """Factory: creates a cluster-result dict matching DBSCANClusterer output shape.
+
+    Args:
+        z_min:  Bottom of the bounding box (controls floor-level vs. elevated labeling).
+        z_max:  Top of the bounding box.
+        dims:   2-element list [width, depth] — XY extent of the cluster.
+        n_pts:  Number of random points in the cluster cloud.
+
+    Returns:
+        dict with keys: label_id, cloud, n_points, aabb, centroid,
+                        dims (actual AABB), z_min, z_max, footprint_m2.
+
+    Used by:
+        - test_semantic_labeler.py (cluster label assignment tests)
+        - test_bbox_estimator.py (OBB computation tests)
+        - test_exporter.py (report serialisation tests)
+    """
     rng = np.random.default_rng(8)
     x = rng.uniform(0, dims[0], n_pts)
     y = rng.uniform(0, dims[1], n_pts)
