@@ -98,35 +98,56 @@ class SemanticLabeler:
             footprint_m2 = float(cluster.footprint_m2)
             aspect_ratio = max(w, d) / min(w, d) if min(w, d) > 1e-3 else 1.0
 
+            # ── Point density (points per cubic metre) ────────────────────
+            volume = max(w * d * h, 1e-6)
+            cluster.point_density = round(cluster.n_points / volume, 1)
+
             label = "furniture"
+            confidence = 0.5
 
             if z_base < 0.2:  # Grounded or near-grounded
                 if h > tall_h:
                     label = "tall_furniture"
+                    confidence = min(h / tall_h, 1.0)
                 elif 0.4 <= h <= 1.1:
                     if 0.3 <= footprint_m2 <= 0.8 and aspect_ratio < 1.5:
                         label = "chair"
+                        confidence = 0.7
                     elif footprint_m2 > 0.8:
                         label = "table"
+                        confidence = 0.8
                     else:
                         label = "furniture"
+                        confidence = 0.4
                 elif h < 0.4:
                     label = "small_object"
+                    confidence = 0.6
                 else:
                     label = "furniture"
+                    confidence = 0.3
             elif 0.2 <= z_base < high_z:
                 if aspect_ratio > 3.0 and w > 1.0:
                     label = "shelf"
+                    confidence = 0.7
                 elif footprint_m2 < max_small_f:
                     label = "small_object"
+                    confidence = 1.0 - (footprint_m2 / max_small_f)
                 else:
                     label = "furniture"
+                    confidence = 0.5
             elif z_base >= high_z:
                 label = "high_fixture"
+                confidence = min(z_base / high_z, 1.0)
+
+            # Boost confidence for dense clusters
+            if cluster.point_density > 50000:
+                confidence = min(confidence + 0.1, 1.0)
 
             cluster.label = label
+            cluster.confidence = round(confidence, 2)
             if cluster.cloud:
                 color = LABEL_COLORS.get(label, LABEL_COLORS["unknown"])
                 cluster.cloud.paint_uniform_color(color)
 
         return clusters
+

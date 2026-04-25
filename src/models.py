@@ -108,7 +108,9 @@ class ClusterResult(BaseModel):
 
     cluster_id: int = Field(..., ge=0)
     label: str = Field("unknown")
+    confidence: float = Field(0.5, ge=0.0, le=1.0, description="Label confidence score.")
     n_points: int = Field(..., gt=0)
+    point_density: float = Field(0.0, ge=0.0, description="Points per cubic metre.")
     centroid: List[float] = Field(..., min_length=3, max_length=3)
     dims: List[float] = Field(..., min_length=3, max_length=3,
                                description="[width, depth, height] in metres.")
