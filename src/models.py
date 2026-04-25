@@ -146,7 +146,8 @@ class ClusterResult(BaseModel):
     def label_is_known(cls, v: str) -> str:
         valid = {
             "furniture", "tall_furniture", "small_object",
-            "high_fixture", "horizontal_surface", "unknown", "noise"
+            "high_fixture", "horizontal_surface", "unknown", "noise",
+            "chair", "table", "shelf"
         }
         if v not in valid:
             raise ValueError(f"Cluster label '{v}' is not a recognised semantic label. "

@@ -1,7 +1,10 @@
 import numpy as np
 import math
+import logging
 from typing import Dict, List, Union
 from src.models import PlaneResult, ClusterResult, LabelingConfig
+
+logger = logging.getLogger(__name__)
 
 # Canonical semantic color map (RGB 0-1). Single source of truth for the whole project.
 LABEL_COLORS: Dict[str, List[float]] = {
@@ -9,7 +12,10 @@ LABEL_COLORS: Dict[str, List[float]] = {
     "ceiling":            [0.9, 0.9, 0.9],   # Light Gray
     "wall":               [0.5, 0.6, 0.8],   # Steel Blue
     "furniture":          [0.2, 0.8, 0.3],   # Green
-    "tall_furniture":     [0.1, 0.5, 0.1],   # Dark Green
+    "chair":              [0.3, 0.9, 0.3],   # Bright Green
+    "table":              [0.1, 0.6, 0.1],   # Dark Green
+    "shelf":              [0.4, 0.4, 0.1],   # Olive
+    "tall_furniture":     [0.1, 0.4, 0.1],   # Very Dark Green
     "small_object":       [0.9, 0.6, 0.1],   # Amber
     "high_fixture":       [0.9, 0.2, 0.2],   # Red
     "horizontal_surface": [0.4, 0.4, 0.1],   # Olive
@@ -24,7 +30,6 @@ class SemanticLabeler:
     Assigns labels to RANSAC planes and DBSCAN clusters using pure geometry.
     """
 
-    # Expose for tests and other modules
     COLOR_MAP = LABEL_COLORS
 
     def __init__(self, config: Union[LabelingConfig, dict]):
@@ -42,7 +47,6 @@ class SemanticLabeler:
         horiz_ang_thr = self.cfg.horizontal_angle_deg
         vert_ang_thr  = self.cfg.vertical_angle_deg
 
-        # Guard: degenerate scene height
         effective_height = max(scene_height, 0.1)
 
         for plane in planes:
@@ -55,10 +59,8 @@ class SemanticLabeler:
                 continue
 
             normal /= norm_len
-            nz  = abs(float(normal[2]))
-            # Clamp to [0,1] to prevent domain errors from floating-point drift
+            nz = abs(float(normal[2]))
             angle_from_vertical = math.degrees(math.acos(min(nz, 1.0)))
-
             centroid_z = float(plane.centroid_z)
 
             if angle_from_vertical < horiz_ang_thr:
@@ -82,7 +84,7 @@ class SemanticLabeler:
     # ── Cluster labeling ──────────────────────────────────────────────────
 
     def label_clusters(self, clusters: List[ClusterResult]) -> List[ClusterResult]:
-        """Labels object clusters using height, reach, and footprint heuristics."""
+        """Labels object clusters using height, aspect ratio, and footprint heuristics."""
         tall_h      = self.cfg.tall_furniture_min_h
         min_foot    = self.cfg.furniture_min_footprint
         min_h       = self.cfg.furniture_min_h
@@ -90,26 +92,37 @@ class SemanticLabeler:
         high_z      = self.cfg.high_fixture_min_z
 
         for cluster in clusters:
-            h_cluster    = float(cluster.z_max) - float(cluster.z_min)
-            z_base       = float(cluster.z_min)
+            dims = cluster.dims if cluster.dims else [0, 0, 0]
+            w, d, h = dims[0], dims[1], dims[2]
+            z_base = float(cluster.z_min)
             footprint_m2 = float(cluster.footprint_m2)
+            aspect_ratio = max(w, d) / min(w, d) if min(w, d) > 1e-3 else 1.0
 
-            if z_base < 0.15:
-                if h_cluster > tall_h:
+            label = "furniture"
+
+            if z_base < 0.2:  # Grounded or near-grounded
+                if h > tall_h:
                     label = "tall_furniture"
-                elif footprint_m2 > min_foot and h_cluster > min_h:
-                    label = "furniture"
+                elif 0.4 <= h <= 1.1:
+                    if 0.3 <= footprint_m2 <= 0.8 and aspect_ratio < 1.5:
+                        label = "chair"
+                    elif footprint_m2 > 0.8:
+                        label = "table"
+                    else:
+                        label = "furniture"
+                elif h < 0.4:
+                    label = "small_object"
                 else:
-                    label = "furniture"  # small floor-level object
-            elif 0.15 <= z_base < high_z:
-                if footprint_m2 < max_small_f:
+                    label = "furniture"
+            elif 0.2 <= z_base < high_z:
+                if aspect_ratio > 3.0 and w > 1.0:
+                    label = "shelf"
+                elif footprint_m2 < max_small_f:
                     label = "small_object"
                 else:
                     label = "furniture"
             elif z_base >= high_z:
                 label = "high_fixture"
-            else:
-                label = "furniture"
 
             cluster.label = label
             if cluster.cloud:
