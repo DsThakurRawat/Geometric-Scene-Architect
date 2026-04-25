@@ -76,7 +76,8 @@ class SemanticLabeler:
     # ── Cluster labeling ──────────────────────────────────────────────────
 
     def label_clusters(self, clusters: List[Dict]) -> List[Dict]:
-        """Labels object clusters using height, reach, and footprint heuristics."""
+        """Labels object clusters using height, reach, and footprint heuristics.
+        Also computes a confidence score (0.0–1.0) and point density (pts/m³)."""
         tall_h      = float(self.cfg.get("tall_furniture_min_h", 1.5))
         min_foot    = float(self.cfg.get("furniture_min_footprint", 0.3))
         min_h       = float(self.cfg.get("furniture_min_h", 0.3))
@@ -87,26 +88,48 @@ class SemanticLabeler:
             h_cluster    = float(cluster["z_max"]) - float(cluster["z_min"])
             z_base       = float(cluster["z_min"])
             footprint_m2 = float(cluster["footprint_m2"])
+            n_points     = int(cluster["n_points"])
+            dims         = cluster.get("dims", [0, 0, 0])
+
+            # ── Point density (points per cubic metre) ────────────────────
+            volume = max(dims[0] * dims[1] * dims[2], 1e-6)
+            cluster["point_density"] = round(n_points / volume, 1)
+
+            # ── Labeling with confidence ──────────────────────────────────
+            confidence = 0.5  # default: moderate confidence
 
             if z_base < 0.15:
                 if h_cluster > tall_h:
                     label = "tall_furniture"
+                    confidence = min(h_cluster / tall_h, 1.0)
                 elif footprint_m2 > min_foot and h_cluster > min_h:
                     label = "furniture"
+                    confidence = min(footprint_m2 / (min_foot * 2), 1.0)
                 else:
                     label = "furniture"  # small floor-level object
+                    confidence = 0.3
             elif 0.15 <= z_base < high_z:
                 if footprint_m2 < max_small_f:
                     label = "small_object"
+                    confidence = 1.0 - (footprint_m2 / max_small_f)
                 else:
                     label = "furniture"
+                    confidence = 0.5
             elif z_base >= high_z:
                 label = "high_fixture"
+                confidence = min(z_base / high_z, 1.0)
             else:
                 label = "furniture"
+                confidence = 0.3
+
+            # Boost confidence for dense clusters (well-scanned objects)
+            if cluster["point_density"] > 50000:
+                confidence = min(confidence + 0.1, 1.0)
 
             cluster["label"] = label
+            cluster["confidence"] = round(confidence, 2)
             color = LABEL_COLORS.get(label, LABEL_COLORS["unknown"])
             cluster["cloud"].paint_uniform_color(color)
 
         return clusters
+
