@@ -1,5 +1,6 @@
 import open3d as o3d
-from typing import Dict, Tuple
+from typing import Tuple, Union
+from src.models import PreprocessingConfig
 
 
 class Preprocessor:
@@ -8,14 +9,15 @@ class Preprocessor:
     Handles denoising, downsampling, and normal estimation.
     """
 
-    def __init__(self, config: Dict):
-        self.cfg = config.get("preprocessing", {})
+    def __init__(self, config: Union[PreprocessingConfig, dict]):
+        if isinstance(config, dict):
+            self.cfg = PreprocessingConfig(**config.get("preprocessing", {}))
+        else:
+            self.cfg = config
 
     def voxel_downsample(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """Reduces point density using voxel downsampling."""
-        voxel_size = float(self.cfg.get("voxel_size", 0.05))
-        if voxel_size <= 0:
-            raise ValueError(f"voxel_size must be > 0, got {voxel_size}")
+        voxel_size = self.cfg.voxel_size
         return pcd.voxel_down_sample(voxel_size=voxel_size)
 
     def remove_statistical_outliers(
@@ -26,9 +28,8 @@ class Preprocessor:
         Returns (clean_pcd, outlier_pcd). If the input has too few points
         (< nb_neighbors + 1), returns (pcd, empty_pcd) without filtering.
         """
-        sor_cfg = self.cfg.get("sor", {})
-        nb_neighbors = int(sor_cfg.get("nb_neighbors", 20))
-        std_ratio = float(sor_cfg.get("std_ratio", 2.0))
+        nb_neighbors = self.cfg.sor.nb_neighbors
+        std_ratio = self.cfg.sor.std_ratio
 
         empty = o3d.geometry.PointCloud()
 
@@ -53,10 +54,9 @@ class Preprocessor:
         Estimates surface normals. Safe to call on small clouds:
         if fewer than (orient_k + 1) points exist, orientation step is skipped.
         """
-        norm_cfg = self.cfg.get("normal_estimation", {})
-        radius = float(norm_cfg.get("radius", 0.1))
-        max_nn = int(norm_cfg.get("max_nn", 30))
-        orient_k = int(norm_cfg.get("orient_k", 15))
+        radius = self.cfg.normal_estimation.radius
+        max_nn = self.cfg.normal_estimation.max_nn
+        orient_k = self.cfg.normal_estimation.orient_k
 
         if len(pcd.points) == 0:
             return

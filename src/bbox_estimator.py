@@ -1,55 +1,54 @@
 import numpy as np
 import logging
-from typing import Dict, List
+from typing import List, Union
+from src.models import PlaneResult, ClusterResult
 
 logger = logging.getLogger(__name__)
 
 
 class BoundingBoxEstimator:
     """
-    Module 6: Bounding Boxes & Furniture Dimensions (Extra Credit)
-    Computes Axis-Aligned (AABB) and Oriented Bounding Boxes (OBB) for each cluster.
+    Module 6: Bounding Boxes & Furniture Dimensions
+    Computes AABB and OBB for each cluster.
     """
 
-    def compute(self, clusters: List[Dict]) -> List[Dict]:
-        """
-        Annotates each cluster dict in-place with AABB and OBB geometry objects
-        and their numeric summaries.  Safe to call on degenerate / near-planar clouds.
-        """
+    def compute(self, clusters: List[ClusterResult]) -> List[ClusterResult]:
+        """Annotates each cluster with AABB and OBB geometry and summaries."""
         for cluster in clusters:
-            cloud = cluster["cloud"]
+            cloud = cluster.cloud
+            if cloud is None:
+                continue
 
-            # ── AABB (always succeeds) ─────────────────────────────────────
+            # ── AABB ──────────────────────────────────────────────────────
             aabb = cloud.get_axis_aligned_bounding_box()
-            aabb.color = (1.0, 0.0, 0.0)  # Red wireframe
+            aabb.color = (1.0, 0.0, 0.0)
             dims = np.asarray(aabb.max_bound) - np.asarray(aabb.min_bound)
-            cluster["aabb_box"] = aabb
-            cluster["dims"] = dims.tolist()
+            cluster.aabb_box = aabb
+            cluster.dims = dims.tolist()
 
-            # ── OBB (may fail on coplanar or very small clouds) ────────────
+            # ── OBB ──────────────────────────────────────────────────────
             try:
                 if len(cloud.points) >= 4:
                     obb = cloud.get_oriented_bounding_box()
-                    obb.color = (0.0, 1.0, 0.0)  # Green wireframe
+                    obb.color = (0.0, 1.0, 0.0)
                     R = np.asarray(obb.R)
                     yaw_deg = float(np.degrees(np.arctan2(R[1, 0], R[0, 0])))
-                    cluster["obb_box"] = obb
-                    cluster["obb_extent"] = obb.extent.tolist()
-                    cluster["obb_rotation_deg"] = yaw_deg
+                    cluster.obb_box = obb
+                    cluster.obb_extent = obb.extent.tolist()
+                    cluster.obb_rotation_deg = yaw_deg
                 else:
-                    cluster["obb_box"] = None
-                    cluster["obb_extent"] = dims.tolist()
-                    cluster["obb_rotation_deg"] = 0.0
+                    cluster.obb_box = None
+                    cluster.obb_extent = dims.tolist()
+                    cluster.obb_rotation_deg = 0.0
             except Exception:
-                # Singular covariance (planar / degenerate cluster) — fall back
-                cluster["obb_box"] = None
-                cluster["obb_extent"] = dims.tolist()
-                cluster["obb_rotation_deg"] = 0.0
+                cluster.obb_box = None
+                cluster.obb_extent = dims.tolist()
+                cluster.obb_rotation_deg = 0.0
 
-            logger.debug(
-                f"  [{cluster.get('label', '?')}] id={cluster['label_id']} "
+            logger.info(
+                f"  [{cluster.label}] id={cluster.cluster_id} "
                 f"W={dims[0]:.2f}m D={dims[1]:.2f}m H={dims[2]:.2f}m "
-                f"yaw={cluster['obb_rotation_deg']:.1f}°"
+                f"yaw={cluster.obb_rotation_deg:.1f}°"
             )
 
         return clusters

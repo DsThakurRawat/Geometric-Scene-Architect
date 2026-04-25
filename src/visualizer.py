@@ -2,74 +2,55 @@ import open3d as o3d
 import copy
 import os
 import logging
-from typing import Dict, List
-
+from typing import List
+from src.models import PlaneResult, ClusterResult
 from src.semantic_labeler import LABEL_COLORS
 
 logger = logging.getLogger(__name__)
 
 
 class Visualizer:
-    """
-    Module 8: Visualization
-    Renders segmented point clouds and saves headless screenshots.
-    """
+    """Module 8: Visualization — renders segmented point clouds."""
 
-    def get_geometries(self, planes: List[Dict], clusters: List[Dict]) -> List:
-        """Returns a list of colored geometry objects for rendering."""
+    def get_geometries(self, planes: List[PlaneResult], clusters: List[ClusterResult]) -> List:
         geometries = []
         for plane in planes:
-            pcd = copy.deepcopy(plane["inlier_cloud"])
-            color = LABEL_COLORS.get(plane.get("label", "unknown"), LABEL_COLORS["unknown"])
-            pcd.paint_uniform_color(color)
-            geometries.append(pcd)
+            if plane.inlier_cloud:
+                pcd = copy.deepcopy(plane.inlier_cloud)
+                color = LABEL_COLORS.get(plane.label, LABEL_COLORS["unknown"])
+                pcd.paint_uniform_color(color)
+                geometries.append(pcd)
 
         for cluster in clusters:
-            pcd = copy.deepcopy(cluster["cloud"])
-            color = LABEL_COLORS.get(cluster.get("label", "unknown"), LABEL_COLORS["unknown"])
-            pcd.paint_uniform_color(color)
-            geometries.append(pcd)
-
-            # Include bounding boxes if BoundingBoxEstimator has been run
-            if cluster.get("aabb_box") is not None:
-                geometries.append(cluster["aabb_box"])
-            if cluster.get("obb_box") is not None:
-                geometries.append(cluster["obb_box"])
+            if cluster.cloud:
+                pcd = copy.deepcopy(cluster.cloud)
+                color = LABEL_COLORS.get(cluster.label, LABEL_COLORS["unknown"])
+                pcd.paint_uniform_color(color)
+                geometries.append(pcd)
+            if cluster.aabb_box is not None:
+                geometries.append(cluster.aabb_box)
+            if cluster.obb_box is not None:
+                geometries.append(cluster.obb_box)
 
         return geometries
 
-    def show(self, planes: List[Dict], clusters: List[Dict]) -> None:
-        """Opens an interactive 3D viewer. Closes when the user presses Q."""
+    def show(self, planes: List[PlaneResult], clusters: List[ClusterResult]) -> None:
         geometries = self.get_geometries(planes, clusters)
         if not geometries:
-            logger.info("Visualizer: nothing to show.")
+            logger.warning("Visualizer: nothing to show.")
             return
-        o3d.visualization.draw_geometries(
-            geometries,
-            window_name="Semantic Segmentation Result",
-            zoom=0.5,
-        )
+        o3d.visualization.draw_geometries(geometries, window_name="Semantic Segmentation Result", zoom=0.5)
 
     def save_screenshot(
-        self,
-        planes: List[Dict],
-        clusters: List[Dict],
-        output_path: str,
+        self, planes: List[PlaneResult], clusters: List[ClusterResult], output_path: str
     ) -> None:
-        """
-        Saves a headless screenshot of the segmented scene.
-        Requires a display (X server or virtual framebuffer).
-        Falls back gracefully if the display is unavailable.
-        """
         parent = os.path.dirname(output_path)
         if parent:
             os.makedirs(parent, exist_ok=True)
-
         geometries = self.get_geometries(planes, clusters)
         if not geometries:
-            logger.info("Visualizer: nothing to screenshot.")
+            logger.warning("Visualizer: nothing to screenshot.")
             return
-
         try:
             vis = o3d.visualization.Visualizer()
             vis.create_window(visible=False, width=1920, height=1080)
@@ -81,5 +62,4 @@ class Visualizer:
             vis.destroy_window()
             logger.info(f"Screenshot saved to: {output_path}")
         except Exception as e:
-            logger.warning(f"Could not save screenshot ({e}). "
-                          "Try running with a virtual display (Xvfb) on headless servers.")
+            logger.warning(f"Could not save screenshot ({e}). Try Xvfb on headless servers.")

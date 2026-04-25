@@ -3,46 +3,45 @@ import json
 import os
 import copy
 import logging
-from typing import Dict, List, Optional
+from typing import List, Optional, Union
+from src.models import PlaneResult, ClusterResult, SegmentationReport, OutputConfig
 
 logger = logging.getLogger(__name__)
 
 
 class Exporter:
     """
-    Module 8: Exporting Results
+    Module 7: Exporting Results
     Saves the labeled point cloud as .ply and generates a JSON metadata report.
     """
 
-    def __init__(self, config: Dict):
-        self.cfg = config.get("output", {})
-
-    # ── Helpers ──────────────────────────────────────────────────────────
+    def __init__(self, config: Union[OutputConfig, dict]):
+        if isinstance(config, dict):
+            self.cfg = OutputConfig(**config.get("output", {}))
+        else:
+            self.cfg = config
 
     @staticmethod
     def _safe_makedirs(path: str) -> None:
-        """Creates parent directories; handles the case where path has no directory."""
         parent = os.path.dirname(path)
         if parent:
             os.makedirs(parent, exist_ok=True)
 
-    # ── PLY export ───────────────────────────────────────────────────────
-
     def merge_and_export_ply(
-        self, planes: List[Dict], clusters: List[Dict], output_path: Optional[str] = None
+        self, planes: List[PlaneResult], clusters: List[ClusterResult],
+        output_path: Optional[str] = None
     ) -> str:
-        """
-        Deep-copies every labeled cloud, merges them, and writes a single colored .ply.
-        Deep-copy prevents mutating the caller's clouds when merge is applied.
-        """
+        """Deep-copies every labeled cloud, merges them, and writes a single colored .ply."""
         if output_path is None:
-            output_path = self.cfg.get("ply", "outputs/segmented_room.ply")
+            output_path = self.cfg.ply
 
         all_pcds = []
         for plane in planes:
-            all_pcds.append(copy.deepcopy(plane["inlier_cloud"]))
+            if plane.inlier_cloud:
+                all_pcds.append(copy.deepcopy(plane.inlier_cloud))
         for cluster in clusters:
-            all_pcds.append(copy.deepcopy(cluster["cloud"]))
+            if cluster.cloud:
+                all_pcds.append(copy.deepcopy(cluster.cloud))
 
         if not all_pcds:
             raise ValueError("No point clouds to export — both planes and clusters are empty.")
@@ -56,67 +55,23 @@ class Exporter:
         logger.info(f"Exported PLY: {output_path}  ({len(merged.points):,} points)")
         return output_path
 
-    # ── JSON report ──────────────────────────────────────────────────────
-
     def export_report(
-        self,
-        planes: List[Dict],
-        clusters: List[Dict],
+        self, planes: List[PlaneResult], clusters: List[ClusterResult],
         output_path: Optional[str] = None,
     ) -> str:
-        """
-        Writes a JSON report with per-plane and per-object metadata.
-        Includes OBB dimensions when BoundingBoxEstimator has been run.
-        """
+        """Writes a JSON report with per-plane and per-object metadata."""
         if output_path is None:
-            output_path = self.cfg.get("report", "outputs/segmentation_report.json")
+            output_path = self.cfg.report
 
-        report: Dict = {
-            "structural_planes": [],
-            "objects": [],
-        }
-
-        for i, plane in enumerate(planes):
-            report["structural_planes"].append(
-                {
-                    "plane_id": i,
-                    "label": plane.get("label", "unknown"),
-                    "inlier_count": plane.get("inlier_count", 0),
-                    "centroid_z": plane.get("centroid_z", 0.0),
-                    "normal": [round(v, 5) for v in plane.get("normal", [0, 0, 0])],
-                    "plane_model": [round(v, 5) for v in plane.get("plane_model", [0, 0, 0, 0])],
-                }
-            )
-
-        for i, cluster in enumerate(clusters):
-            obj: Dict = {
-                "cluster_id": i,
-                "label": cluster.get("label", "unknown"),
-                "n_points": cluster.get("n_points", 0),
-                "dims": [round(v, 4) for v in cluster.get("dims", [0, 0, 0])],
-                "centroid": [round(v, 4) for v in cluster.get("centroid", [0, 0, 0])],
-                "z_min": round(cluster.get("z_min", 0.0), 4),
-                "z_max": round(cluster.get("z_max", 0.0), 4),
-                "footprint_m2": round(cluster.get("footprint_m2", 0.0), 4),
-            }
-            # Include OBB info if available
-            if "obb_extent" in cluster:
-                obj["obb_extent"] = [round(v, 4) for v in cluster["obb_extent"]]
-                obj["obb_rotation_deg"] = round(cluster.get("obb_rotation_deg", 0.0), 2)
-            report["objects"].append(obj)
+        report_model = SegmentationReport(
+            structural_planes=planes,
+            objects=clusters
+        )
+        report_dict = report_model.model_dump(mode="json")
 
         self._safe_makedirs(output_path)
         with open(output_path, "w") as f:
-            json.dump(report, f, indent=4)
+            json.dump(report_dict, f, indent=4)
 
         logger.info(f"Exported report: {output_path}")
-
-        # ── Optional: Runtime Pydantic Validation ──────────────────────────
-        from src.models import SegmentationReport
-        try:
-            SegmentationReport(**report)
-            logger.debug("  [Validation] JSON report satisfies Pydantic schema.")
-        except Exception as e:
-            logger.warning(f"  [Validation Warning] Exported report does not strictly match schema: {e}")
-
         return output_path
