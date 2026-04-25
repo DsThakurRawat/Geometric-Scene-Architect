@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "room-segmentation-3d"
+version = "1.0.0"
+description = "3D Room Scene Semantic Segmentation Pipeline using RANSAC, DBSCAN, and geometric heuristics."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+
+dependencies = [
+    "open3d>=0.19.0",
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "plyfile",
+    "tqdm",
+    "pyyaml",
+    "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "flake8",
+    "mypy",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
