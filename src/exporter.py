@@ -89,7 +89,9 @@ class Exporter:
             obj: Dict = {
                 "cluster_id": i,
                 "label": cluster.get("label", "unknown"),
+                "confidence": cluster.get("confidence", 0.5),
                 "n_points": cluster.get("n_points", 0),
+                "point_density": cluster.get("point_density", 0.0),
                 "dims": [round(v, 4) for v in cluster.get("dims", [0, 0, 0])],
                 "centroid": [round(v, 4) for v in cluster.get("centroid", [0, 0, 0])],
                 "z_min": round(cluster.get("z_min", 0.0), 4),
