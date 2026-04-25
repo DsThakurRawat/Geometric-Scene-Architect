@@ -1,6 +1,7 @@
 import open3d as o3d
 import numpy as np
-from typing import Dict, List
+from typing import List, Union
+from src.models import ClusterResult, DbscanConfig
 
 
 class DBSCANClusterer:
@@ -9,23 +10,26 @@ class DBSCANClusterer:
     Groups remaining points into object-like clusters.
     """
 
-    def __init__(self, config: Dict):
-        self.cfg = config.get("dbscan", {})
+    def __init__(self, config: Union[DbscanConfig, dict]):
+        if isinstance(config, dict):
+            self.cfg = DbscanConfig(**config.get("dbscan", {}))
+        else:
+            self.cfg = config
 
-    def cluster(self, residual_pcd: o3d.geometry.PointCloud) -> List[Dict]:
+    def cluster(self, residual_pcd: o3d.geometry.PointCloud) -> List[ClusterResult]:
         """
         Runs DBSCAN clustering and filters out noise / over-sized blobs.
 
         Returns:
-            clusters – list of cluster-result dicts, sorted by n_points descending.
+            clusters – list of ClusterResult objects, sorted by n_points descending.
         """
         if len(residual_pcd.points) < 2:
             return []
 
-        eps = float(self.cfg.get("eps", 0.10))
-        min_points = int(self.cfg.get("min_points", 50))
-        min_cluster_points = int(self.cfg.get("min_cluster_points", 100))
-        max_object_size = float(self.cfg.get("max_object_size", 3.0))
+        eps = self.cfg.eps
+        min_points = self.cfg.min_points
+        min_cluster_points = self.cfg.min_cluster_points
+        max_object_size = self.cfg.max_object_size
 
         labels = np.array(
             residual_pcd.cluster_dbscan(
@@ -41,7 +45,7 @@ class DBSCANClusterer:
         max_label = int(labels.max())
         print(f"DBSCAN found {max_label + 1} raw cluster(s) (before filtering).")
 
-        clusters: List[Dict] = []
+        clusters: List[ClusterResult] = []
         for i in range(max_label + 1):
             indices = np.where(labels == i)[0]
 
@@ -63,20 +67,20 @@ class DBSCANClusterer:
             z_max = float(pts[:, 2].max())
 
             clusters.append(
-                {
-                    "label_id": i,
-                    "cloud": cluster_cloud,
-                    "n_points": int(indices.size),
-                    "aabb": aabb,
-                    "centroid": centroid.tolist(),
-                    "dims": dims.tolist(),
-                    "z_min": z_min,
-                    "z_max": z_max,
-                    "footprint_m2": float(dims[0] * dims[1]),
-                }
+                ClusterResult(
+                    cluster_id=i,
+                    cloud=cluster_cloud,
+                    n_points=int(indices.size),
+                    aabb_box=aabb,
+                    centroid=centroid.tolist(),
+                    dims=dims.tolist(),
+                    z_min=z_min,
+                    z_max=z_max,
+                    footprint_m2=float(dims[0] * dims[1]),
+                )
             )
 
         # Sort by size descending so dominant objects come first
-        clusters.sort(key=lambda c: c["n_points"], reverse=True)
+        clusters.sort(key=lambda c: c.n_points, reverse=True)
         print(f"Retained {len(clusters)} cluster(s) after size filtering.")
         return clusters

@@ -1,8 +1,8 @@
 import open3d as o3d
 import copy
 import os
-from typing import Dict, List
-
+from typing import List
+from src.models import PlaneResult, ClusterResult
 from src.semantic_labeler import LABEL_COLORS
 
 
@@ -12,30 +12,32 @@ class Visualizer:
     Renders segmented point clouds and saves headless screenshots.
     """
 
-    def get_geometries(self, planes: List[Dict], clusters: List[Dict]) -> List:
+    def get_geometries(self, planes: List[PlaneResult], clusters: List[ClusterResult]) -> List:
         """Returns a list of colored geometry objects for rendering."""
         geometries = []
         for plane in planes:
-            pcd = copy.deepcopy(plane["inlier_cloud"])
-            color = LABEL_COLORS.get(plane.get("label", "unknown"), LABEL_COLORS["unknown"])
-            pcd.paint_uniform_color(color)
-            geometries.append(pcd)
+            if plane.inlier_cloud:
+                pcd = copy.deepcopy(plane.inlier_cloud)
+                color = LABEL_COLORS.get(plane.label, LABEL_COLORS["unknown"])
+                pcd.paint_uniform_color(color)
+                geometries.append(pcd)
 
         for cluster in clusters:
-            pcd = copy.deepcopy(cluster["cloud"])
-            color = LABEL_COLORS.get(cluster.get("label", "unknown"), LABEL_COLORS["unknown"])
-            pcd.paint_uniform_color(color)
-            geometries.append(pcd)
+            if cluster.cloud:
+                pcd = copy.deepcopy(cluster.cloud)
+                color = LABEL_COLORS.get(cluster.label, LABEL_COLORS["unknown"])
+                pcd.paint_uniform_color(color)
+                geometries.append(pcd)
 
             # Include bounding boxes if BoundingBoxEstimator has been run
-            if cluster.get("aabb_box") is not None:
-                geometries.append(cluster["aabb_box"])
-            if cluster.get("obb_box") is not None:
-                geometries.append(cluster["obb_box"])
+            if cluster.aabb_box is not None:
+                geometries.append(cluster.aabb_box)
+            if cluster.obb_box is not None:
+                geometries.append(cluster.obb_box)
 
         return geometries
 
-    def show(self, planes: List[Dict], clusters: List[Dict]) -> None:
+    def show(self, planes: List[PlaneResult], clusters: List[ClusterResult]) -> None:
         """Opens an interactive 3D viewer. Closes when the user presses Q."""
         geometries = self.get_geometries(planes, clusters)
         if not geometries:
@@ -49,8 +51,8 @@ class Visualizer:
 
     def save_screenshot(
         self,
-        planes: List[Dict],
-        clusters: List[Dict],
+        planes: List[PlaneResult],
+        clusters: List[ClusterResult],
         output_path: str,
     ) -> None:
         """

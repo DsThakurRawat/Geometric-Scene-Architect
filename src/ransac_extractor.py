@@ -1,6 +1,7 @@
 import open3d as o3d
 import numpy as np
-from typing import Dict, List, Tuple
+from typing import List, Tuple, Union
+from src.models import PlaneResult, RansacConfig
 
 
 class IterativeRANSAC:
@@ -11,31 +12,34 @@ class IterativeRANSAC:
     coplanar-but-disconnected fragments.
     """
 
-    def __init__(self, config: Dict):
-        self.cfg = config.get("ransac", {})
+    def __init__(self, config: Union[RansacConfig, dict]):
+        if isinstance(config, dict):
+            self.cfg = RansacConfig(**config.get("ransac", {}))
+        else:
+            self.cfg = config
 
     def extract_planes(
         self, pcd: o3d.geometry.PointCloud
-    ) -> Tuple[List[Dict], o3d.geometry.PointCloud]:
+    ) -> Tuple[List[PlaneResult], o3d.geometry.PointCloud]:
         """
         Runs RANSAC in a loop to extract planes until no large planes remain.
 
         Returns:
-            planes        – list of PlaneResult dicts.
+            planes        – list of PlaneResult objects.
             residual_pcd  – remaining cloud (potential furniture / clutter).
         """
         if len(pcd.points) == 0:
             return [], pcd
 
         remaining_pcd = pcd
-        planes: List[Dict] = []
+        planes: List[PlaneResult] = []
 
-        dist_threshold = float(self.cfg.get("distance_threshold", 0.02))
-        ransac_n = int(self.cfg.get("ransac_n", 3))
-        num_iterations = int(self.cfg.get("num_iterations", 2000))
-        min_plane_size = int(self.cfg.get("min_plane_size", 1000))
-        max_planes = int(self.cfg.get("max_planes", 10))
-        remaining_points_min = int(self.cfg.get("remaining_points_min", 500))
+        dist_threshold = self.cfg.distance_threshold
+        ransac_n = self.cfg.ransac_n
+        num_iterations = self.cfg.num_iterations
+        min_plane_size = self.cfg.min_plane_size
+        max_planes = self.cfg.max_planes
+        remaining_points_min = self.cfg.remaining_points_min
 
         for i in range(max_planes):
             if len(remaining_pcd.points) < max(remaining_points_min, ransac_n):
@@ -66,13 +70,14 @@ class IterativeRANSAC:
                 continue  # Degenerate refinement result — skip
 
             planes.append(
-                {
-                    "plane_model": plane_model,
-                    "inlier_cloud": refined_cloud,
-                    "inlier_count": len(pts),
-                    "normal": list(plane_model[:3]),  # [a, b, c]
-                    "centroid_z": float(np.median(pts[:, 2])),
-                }
+                PlaneResult(
+                    plane_id=i,
+                    plane_model=plane_model.tolist(),
+                    inlier_cloud=refined_cloud,
+                    inlier_count=len(pts),
+                    normal=plane_model[:3].tolist(),  # [a, b, c]
+                    centroid_z=float(np.median(pts[:, 2])),
+                )
             )
 
             print(

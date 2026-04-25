@@ -19,12 +19,14 @@ from src.bbox_estimator import BoundingBoxEstimator
 from src.topdown_mapper import TopDownMapper
 from src.visualizer import Visualizer
 from src.exporter import Exporter
+from src.models import PipelineConfig
 
 
-def load_config(config_path: str) -> dict:
-    """Loads a YAML configuration file."""
+def load_config(config_path: str) -> PipelineConfig:
+    """Loads a YAML configuration file and validates it via Pydantic."""
     with open(config_path, "r") as f:
-        return yaml.safe_load(f)
+        raw_cfg = yaml.safe_load(f)
+    return PipelineConfig(**raw_cfg)
 
 
 def main():
@@ -39,45 +41,47 @@ def main():
                         help="Save a headless rendering screenshot.")
     args = parser.parse_args()
 
-    # ── 0. Load Configuration ─────────────────────────────────────────────
+    # ── 0. Load & Validate Configuration ──────────────────────────────────
     if not os.path.exists(args.config):
         print(f"Error: Config file not found at {args.config}")
         sys.exit(1)
-    cfg = load_config(args.config)
+    
+    try:
+        cfg = load_config(args.config)
+    except Exception as e:
+        print(f"Configuration Error: {e}")
+        sys.exit(1)
+    
     print("--- 3D Room Segmentation Pipeline Started ---")
-    print(f"Input : {args.input}")
-    print(f"Config: {args.config}")
 
     # ── 1. Module 1: Load Data ─────────────────────────────────────────────
     loader = PointCloudLoader()
     pcd_raw = loader.load(args.input)
     stats = loader.validate(pcd_raw)
-    print(f"Loaded {stats['n_points']:,} points | "
-          f"Scene dims: {[f'{d:.2f}m' for d in stats['scene_dims']]}")
+    print(f"Loaded {stats['n_points']:,} points.")
 
     # Normalize: floor -> Z=0
     pcd_norm = loader.normalize_orientation(pcd_raw)
 
     # ── 2. Module 2: Preprocessing ────────────────────────────────────────
-    prep = Preprocessor(cfg)
+    prep = Preprocessor(cfg.preprocessing)
     pcd_down = prep.voxel_downsample(pcd_norm)
     pcd_clean, _ = prep.remove_statistical_outliers(pcd_down)
     prep.estimate_normals(pcd_clean)
     print(f"After preprocessing: {len(pcd_clean.points):,} points remaining.")
 
     # ── 3. Module 3: Structural Segmentation (RANSAC) ────────────────────
-    ransac = IterativeRANSAC(cfg)
+    ransac = IterativeRANSAC(cfg.ransac)
     planes, residual_pcd = ransac.extract_planes(pcd_clean)
-    print(f"Found {len(planes)} planar structures. "
-          f"Residual: {len(residual_pcd.points):,} points.")
+    print(f"Found {len(planes)} planar structures.")
 
     # ── 4. Module 4: Residual Clustering (DBSCAN) ────────────────────────
-    clusterer = DBSCANClusterer(cfg)
+    clusterer = DBSCANClusterer(cfg.dbscan)
     clusters = clusterer.cluster(residual_pcd)
     print(f"Found {len(clusters)} object-like clusters.")
 
     # ── 5. Module 5: Semantic Labeling ───────────────────────────────────
-    labeler = SemanticLabeler(cfg)
+    labeler = SemanticLabeler(cfg.labeling)
     stats_clean = loader.validate(pcd_clean)
     scene_height = stats_clean["scene_dims"][2]
 
@@ -88,36 +92,24 @@ def main():
     bbox_est = BoundingBoxEstimator()
     labeled_clusters = bbox_est.compute(labeled_clusters)
 
-    # ── 7. Module 8: Export ───────────────────────────────────────────────
-    exporter = Exporter(cfg)
-    if not labeled_planes and not labeled_clusters:
-        print("Warning: no planes or clusters found — skipping PLY export.")
-        output_ply = None
-        output_json = exporter.export_report(labeled_planes, labeled_clusters)
-    else:
-        output_ply = exporter.merge_and_export_ply(labeled_planes, labeled_clusters)
-        output_json = exporter.export_report(labeled_planes, labeled_clusters)
+    # ── 7. Module 7: Export ───────────────────────────────────────────────
+    exporter = Exporter(cfg.output)
+    output_ply = exporter.merge_and_export_ply(labeled_planes, labeled_clusters)
+    output_json = exporter.export_report(labeled_planes, labeled_clusters)
 
-    print("--- Execution Summary ---")
-    print(f"  Planes found    : {len(labeled_planes)}")
-    print(f"  Clusters found  : {len(labeled_clusters)}")
-    print(f"  Segmented PLY   : {output_ply}")
-    print(f"  Report JSON     : {output_json}")
-
-    # ── 8. Module 7: Top-Down Map ─────────────────────────────────────────
+    # ── 8. Module 8: Top-Down Map ─────────────────────────────────────────
     if not args.no_topdown:
-        mapper = TopDownMapper(cfg)
-        map_path = mapper.generate(labeled_planes, labeled_clusters)
-        print(f"  Top-down map    : {map_path}")
+        mapper = TopDownMapper(cfg.output)
+        mapper.generate(labeled_planes, labeled_clusters)
 
     # ── 9. Optional: Screenshot ───────────────────────────────────────────
     if args.screenshot:
         viz = Visualizer()
-        screenshot_path = cfg.get("output", {}).get("screenshot", "outputs/screenshot.png")
-        viz.save_screenshot(labeled_planes, labeled_clusters, screenshot_path)
-        print(f"  Screenshot      : {screenshot_path}")
+        viz.save_screenshot(labeled_planes, labeled_clusters, cfg.output.screenshot)
 
-    print("--- Pipeline Finished Successfully ---")
+    print(f"--- Pipeline Finished Successfully ---")
+    print(f"Output PLY : {output_ply}")
+    print(f"Output JSON: {output_json}")
 
 
 if __name__ == "__main__":

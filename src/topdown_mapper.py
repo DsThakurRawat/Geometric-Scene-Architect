@@ -4,9 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 import numpy as np
 import os
-from typing import Dict, List, Optional
+from typing import List, Optional, Union
 
 from src.semantic_labeler import LABEL_COLORS
+from src.models import PlaneResult, ClusterResult, OutputConfig
 
 
 class TopDownMapper:
@@ -18,13 +19,16 @@ class TopDownMapper:
     # Slightly darker wall color for 2D contrast
     _MAP_COLORS = {**LABEL_COLORS, "wall": [0.25, 0.25, 0.25]}
 
-    def __init__(self, config: Dict):
-        self.cfg = config.get("output", {})
+    def __init__(self, config: Union[OutputConfig, dict]):
+        if isinstance(config, dict):
+            self.cfg = OutputConfig(**config.get("output", {}))
+        else:
+            self.cfg = config
 
     def generate(
         self,
-        planes: List[Dict],
-        clusters: List[Dict],
+        planes: List[PlaneResult],
+        clusters: List[ClusterResult],
         output_path: Optional[str] = None,
     ) -> Optional[str]:
         """
@@ -33,19 +37,22 @@ class TopDownMapper:
         Returns the output path on success, or None if there is nothing to draw.
         """
         if output_path is None:
-            output_path = self.cfg.get("screenshot", "outputs/topdown_map.png")
+            # We reuse screenshot config for map if not specified, 
+            # though usually it should have its own entry in a real project.
+            output_path = "outputs/topdown_map.png"
 
         # ── Collect all 2D (XY) points for axis bounds ────────────────────
-        # Use ALL planes for bounds (not just floor) so wall-only inputs work.
         all_xy: List[np.ndarray] = []
         for plane in planes:
-            pts = np.asarray(plane["inlier_cloud"].points)
-            if len(pts) > 0:
-                all_xy.append(pts[:, :2])
+            if plane.inlier_cloud:
+                pts = np.asarray(plane.inlier_cloud.points)
+                if len(pts) > 0:
+                    all_xy.append(pts[:, :2])
         for cluster in clusters:
-            pts = np.asarray(cluster["cloud"].points)
-            if len(pts) > 0:
-                all_xy.append(pts[:, :2])
+            if cluster.cloud:
+                pts = np.asarray(cluster.cloud.points)
+                if len(pts) > 0:
+                    all_xy.append(pts[:, :2])
 
         if not all_xy:
             print("TopDownMapper: nothing to draw (no planes or clusters).")
@@ -63,8 +70,8 @@ class TopDownMapper:
 
         # ── Draw wall footprints ──────────────────────────────────────────
         for plane in planes:
-            if plane.get("label") == "wall":
-                pts = np.asarray(plane["inlier_cloud"].points)
+            if plane.label == "wall" and plane.inlier_cloud:
+                pts = np.asarray(plane.inlier_cloud.points)
                 if len(pts) > 0:
                     ax.scatter(
                         pts[:, 0], pts[:, 1],
@@ -74,11 +81,11 @@ class TopDownMapper:
         # ── Draw cluster footprints ───────────────────────────────────────
         seen_labels: set = set()
         for i, cluster in enumerate(clusters):
-            label = cluster.get("label", "unknown")
+            label = cluster.label
             color = self._MAP_COLORS.get(label, self._MAP_COLORS.get("unknown", [0.6, 0, 0.6]))
 
-            # Use aabb_box if BBoxEstimator ran, fall back to aabb
-            bbox = cluster.get("aabb_box") or cluster.get("aabb")
+            # Use aabb_box if BBoxEstimator ran
+            bbox = cluster.aabb_box
             if bbox is None:
                 continue
 
@@ -102,7 +109,7 @@ class TopDownMapper:
             )
             ax.add_patch(rect)
 
-            cx, cy = cluster["centroid"][0], cluster["centroid"][1]
+            cx, cy = cluster.centroid[0], cluster.centroid[1]
             ax.text(
                 cx, cy, f"{label}\n({i})",
                 fontsize=7, ha="center", va="center",
