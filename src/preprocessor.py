@@ -49,6 +49,34 @@ class Preprocessor:
 
         return clean_pcd, outlier_pcd
 
+    def remove_radius_outliers(
+        self, pcd: o3d.geometry.PointCloud
+    ) -> Tuple[o3d.geometry.PointCloud, o3d.geometry.PointCloud]:
+        """
+        Removes isolated points via Radius Outlier Removal.
+        A point is removed if fewer than `min_neighbors` points exist within `radius`.
+        Returns (clean_pcd, outlier_pcd).
+        """
+        ror_cfg = self.cfg.get("ror", {})
+        radius = float(ror_cfg.get("radius", 0.1))
+        min_neighbors = int(ror_cfg.get("min_neighbors", 10))
+
+        empty = o3d.geometry.PointCloud()
+
+        if len(pcd.points) < 2:
+            return pcd, empty
+
+        cl, ind = pcd.remove_radius_outlier(
+            nb_points=min_neighbors, radius=radius
+        )
+        clean_pcd = pcd.select_by_index(ind)
+        outlier_pcd = pcd.select_by_index(ind, invert=True)
+
+        if len(clean_pcd.points) == 0:
+            return pcd, outlier_pcd
+
+        return clean_pcd, outlier_pcd
+
     def estimate_normals(self, pcd: o3d.geometry.PointCloud) -> None:
         """
         Estimates surface normals. Safe to call on small clouds:

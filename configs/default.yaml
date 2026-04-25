@@ -1,8 +1,12 @@
 preprocessing:
   voxel_size: 0.03          # Reduced from 0.05 for better detail
+  denoising_method: "sor"   # Options: "sor", "ror", "both"
   sor:
     nb_neighbors: 20        # Statistical Outlier Removal neighbors
     std_ratio: 2.0          # SOR standard deviation ratio
+  ror:
+    radius: 0.1             # Radius Outlier Removal search radius
+    min_neighbors: 10       # Min neighbors within radius to keep a point
   normal_estimation:
     radius: 0.1             # Normal estimation neighborhood radius
     max_nn: 30              # Max neighbors for normals
