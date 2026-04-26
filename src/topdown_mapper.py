@@ -37,8 +37,9 @@ class TopDownMapper:
 
         all_xy = []
         for plane in planes:
-            if plane.inlier_cloud:
-                pts = np.asarray(plane.inlier_cloud.points)
+            inlier_cloud = getattr(plane, "inlier_cloud", None) if not isinstance(plane, dict) else plane.get("inlier_cloud")
+            if inlier_cloud:
+                pts = np.asarray(inlier_cloud.points)
                 if len(pts) > 0:
                     all_xy.append(pts[:, :2])
         for cluster in clusters:
@@ -63,7 +64,7 @@ class TopDownMapper:
 
         for plane in planes:
             if plane.label == "wall" and plane.inlier_cloud:
-                pts = np.asarray(plane.inlier_cloud.points)
+                pts = np.asarray(inlier_cloud.points)
                 if len(pts) > 0:
                     ax.scatter(pts[:, 0], pts[:, 1], s=1,
                                c=[self._MAP_COLORS["wall"]], alpha=0.6, zorder=2)
