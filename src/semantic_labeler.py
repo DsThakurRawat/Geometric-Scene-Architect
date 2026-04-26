@@ -100,15 +100,20 @@ class SemanticLabeler:
         high_z      = self.cfg.high_fixture_min_z
 
         for cluster in clusters:
-            dims = cluster.dims if cluster.dims else [0, 0, 0]
+            dims = getattr(cluster, 'dims', None) if not isinstance(cluster, dict) else cluster.get('dims')
+            if dims is None: dims = [0, 0, 0]
             w, d, h = dims[0], dims[1], dims[2]
-            z_base = float(cluster.z_min)
-            footprint_m2 = float(cluster.footprint_m2)
+            z_base = float(getattr(cluster, 'z_min', 0.0) if not isinstance(cluster, dict) else cluster.get('z_min', 0.0))
+            footprint_m2 = float(getattr(cluster, 'footprint_m2', 0.0) if not isinstance(cluster, dict) else cluster.get('footprint_m2', 0.0))
             aspect_ratio = max(w, d) / min(w, d) if min(w, d) > 1e-3 else 1.0
 
             # ── Point density (points per cubic metre) ────────────────────
             volume = max(w * d * h, 1e-6)
-            cluster.point_density = round(cluster.n_points / volume, 1)
+            n_points = getattr(cluster, 'n_points', 1) if not isinstance(cluster, dict) else cluster.get('n_points', 1)
+            density = round(n_points / volume, 1)
+            
+            if not isinstance(cluster, dict): cluster.point_density = density
+            else: cluster["point_density"] = density
 
             label = "furniture"
             confidence = 0.5
@@ -148,14 +153,20 @@ class SemanticLabeler:
                 confidence = min(z_base / high_z, 1.0)
 
             # Boost confidence for dense clusters
-            if cluster.point_density > 50000:
+            if density > 50000:
                 confidence = min(confidence + 0.1, 1.0)
 
-            cluster.label = label
-            cluster.confidence = round(confidence, 2)
-            if cluster.cloud:
+            if not isinstance(cluster, dict):
+                cluster.label = label
+                cluster.confidence = round(confidence, 2)
+            else:
+                cluster["label"] = label
+                cluster["confidence"] = round(confidence, 2)
+                
+            cloud = getattr(cluster, 'cloud', None) if not isinstance(cluster, dict) else cluster.get('cloud')
+            if cloud:
                 color = LABEL_COLORS.get(label, LABEL_COLORS["unknown"])
-                cluster.cloud.paint_uniform_color(color)
+                cloud.paint_uniform_color(color)
 
         return clusters
 
