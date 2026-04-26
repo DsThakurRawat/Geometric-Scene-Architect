@@ -72,9 +72,9 @@ class TopDownMapper:
 
         seen_labels = set()
         for i, cluster in enumerate(clusters):
-            label = cluster.label
+            label = getattr(cluster, 'label', 'unknown') if not isinstance(cluster, dict) else cluster.get('label', 'unknown')
             color = self._MAP_COLORS.get(label, self._MAP_COLORS.get("unknown", [0.6, 0, 0.6]))
-            bbox = cluster.aabb_box
+            bbox = getattr(cluster, 'aabb_box', None) if not isinstance(cluster, dict) else cluster.get('aabb_box', cluster.get('aabb'))
             if bbox is None:
                 continue
 
@@ -92,7 +92,8 @@ class TopDownMapper:
                 alpha=0.75, label=legend_label, zorder=3,
             )
             ax.add_patch(rect)
-            cx, cy = cluster.centroid[0], cluster.centroid[1]
+            centroid = getattr(cluster, 'centroid', [0,0,0]) if not isinstance(cluster, dict) else cluster.get('centroid', [0,0,0])
+            cx, cy = centroid[0], centroid[1]
             ax.text(cx, cy, f"{label}\n({i})", fontsize=7, ha="center", va="center",
                     color="white", weight="bold", zorder=4)
 
