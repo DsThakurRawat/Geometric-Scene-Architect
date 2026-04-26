@@ -61,6 +61,7 @@ class PipelineConfig(BaseModel):
 # ── Plane result ─────────────────────────────────────────────────────────────
 
 class PlaneResult(BaseModel):
+    """Represents a geometric plane detected via RANSAC with semantic labeling."""
     """
     Output of IterativeRANSAC for a single detected plane.
     """
@@ -100,6 +101,7 @@ class PlaneResult(BaseModel):
 # ── Cluster result ────────────────────────────────────────────────────────────
 
 class ClusterResult(BaseModel):
+    """Represents a point cloud cluster detected via DBSCAN with geometric properties."""
     """
     Output of DBSCANClusterer + SemanticLabeler + BoundingBoxEstimator
     for a single detected object cluster.
