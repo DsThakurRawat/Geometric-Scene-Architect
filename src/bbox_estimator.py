@@ -16,7 +16,8 @@ class BoundingBoxEstimator:
         """Annotates each cluster with AABB and OBB geometry and summaries."""
         for cluster in clusters:
             cloud = cluster.cloud
-            if cloud is None:
+            if cloud is None or len(cloud.points) == 0:
+                logger.warning(f"  [Skipping] Cluster {cluster.cluster_id} has 0 points.")
                 continue
 
             # ── AABB ──────────────────────────────────────────────────────
