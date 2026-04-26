@@ -43,8 +43,9 @@ class TopDownMapper:
                 if len(pts) > 0:
                     all_xy.append(pts[:, :2])
         for cluster in clusters:
-            if cluster.cloud:
-                pts = np.asarray(cluster.cloud.points)
+            cloud = getattr(cluster, "cloud", None) if not isinstance(cluster, dict) else cluster.get("cloud")
+            if cloud:
+                pts = np.asarray(cloud.points)
                 if len(pts) > 0:
                     all_xy.append(pts[:, :2])
 
