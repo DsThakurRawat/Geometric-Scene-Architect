@@ -67,9 +67,8 @@ class Preprocessor:
         A point is removed if fewer than `min_neighbors` points exist within `radius`.
         Returns (clean_pcd, outlier_pcd).
         """
-        ror_cfg = self.cfg.get("ror", {})
-        radius = float(ror_cfg.get("radius", 0.1))
-        min_neighbors = int(ror_cfg.get("min_neighbors", 10))
+        radius = self.cfg.ror.radius
+        min_neighbors = self.cfg.ror.min_neighbors
 
         empty = o3d.geometry.PointCloud()
 

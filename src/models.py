@@ -14,9 +14,14 @@ class NormalEstimationConfig(BaseModel):
     max_nn: int = Field(30, gt=0)
     orient_k: int = Field(15, gt=0)
 
+class RORConfig(BaseModel):
+    radius: float = Field(0.1, gt=0)
+    min_neighbors: int = Field(10, gt=0)
+
 class PreprocessingConfig(BaseModel):
     voxel_size: float = Field(0.05, gt=0)
     sor: SORConfig = Field(default_factory=SORConfig)
+    ror: RORConfig = Field(default_factory=RORConfig)
     normal_estimation: NormalEstimationConfig = Field(default_factory=NormalEstimationConfig)
 
 class RansacConfig(BaseModel):
