@@ -10,7 +10,7 @@ install:
 	pip install -r requirements.txt
 
 run:
-	python main.py --input $(INPUT_CLOUD) --config $(CONFIG_FILE)
+	python3 main.py --input $(INPUT_CLOUD) --config $(CONFIG_FILE)
 
 test:
 	pytest tests/ --verbose
