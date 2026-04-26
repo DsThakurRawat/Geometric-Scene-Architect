@@ -50,34 +50,42 @@ class SemanticLabeler:
         effective_height = max(scene_height, 0.1)
 
         for plane in planes:
-            normal = np.array(plane.normal, dtype=float)
+            normal = np.array(getattr(plane, 'normal', [0,0,0]) if not isinstance(plane, dict) else plane.get('normal', [0,0,0]), dtype=float)
             norm_len = np.linalg.norm(normal)
             if norm_len < 1e-9:
-                plane.label = "unknown"
-                if plane.inlier_cloud:
-                    plane.inlier_cloud.paint_uniform_color(LABEL_COLORS["unknown"])
+                if not isinstance(plane, dict): plane.label = "unknown"
+                else: plane["label"] = "unknown"
+                
+                inlier_cloud = getattr(plane, 'inlier_cloud', None) if not isinstance(plane, dict) else plane.get('inlier_cloud')
+                if inlier_cloud:
+                    inlier_cloud.paint_uniform_color(LABEL_COLORS["unknown"])
                 continue
 
             normal /= norm_len
             nz = abs(float(normal[2]))
             angle_from_vertical = math.degrees(math.acos(min(nz, 1.0)))
-            centroid_z = float(plane.centroid_z)
+            centroid_z = float(getattr(plane, 'centroid_z', 0.0) if not isinstance(plane, dict) else plane.get('centroid_z', 0.0))
 
+            label = "unknown"
             if angle_from_vertical < horiz_ang_thr:
                 if centroid_z < floor_z_thr:
-                    plane.label = "floor"
+                    label = "floor"
                 elif centroid_z > effective_height * ceil_z_frac:
-                    plane.label = "ceiling"
+                    label = "ceiling"
                 else:
-                    plane.label = "horizontal_surface"
+                    label = "horizontal_surface"
             elif angle_from_vertical > vert_ang_thr:
-                plane.label = "wall"
+                label = "wall"
             else:
-                plane.label = "unknown"
+                label = "unknown"
 
-            if plane.inlier_cloud:
-                color = LABEL_COLORS.get(plane.label, LABEL_COLORS["unknown"])
-                plane.inlier_cloud.paint_uniform_color(color)
+            if not isinstance(plane, dict): plane.label = label
+            else: plane["label"] = label
+
+            inlier_cloud = getattr(plane, 'inlier_cloud', None) if not isinstance(plane, dict) else plane.get('inlier_cloud')
+            if inlier_cloud:
+                color = LABEL_COLORS.get(label, LABEL_COLORS["unknown"])
+                inlier_cloud.paint_uniform_color(color)
 
         return planes
 
