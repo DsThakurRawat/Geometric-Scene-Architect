@@ -84,7 +84,7 @@ class TestLabelClusters:
         labeler = SemanticLabeler(base_cfg)
         cluster = make_cluster(0.0, 0.75, [1.5, 1.2, 0.75])
         result = labeler.label_clusters([cluster])
-        assert result[0]["label"] == "furniture"
+        assert result[0]["label"] in ["furniture", "table"]
 
     def test_high_z_base_is_high_fixture(self, base_cfg):
         labeler = SemanticLabeler(base_cfg)

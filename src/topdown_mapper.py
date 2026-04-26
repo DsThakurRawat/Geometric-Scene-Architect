@@ -33,7 +33,7 @@ class TopDownMapper:
     ) -> Optional[str]:
         """Generates a 2D semantic floor-plan image."""
         if output_path is None:
-            output_path = "outputs/topdown_map.png"
+            output_path = getattr(self.cfg, 'screenshot', "outputs/topdown_map.png")
 
         all_xy = []
         for plane in planes:
@@ -64,7 +64,9 @@ class TopDownMapper:
         ax.set_ylim(min_xy[1] - margin, max_xy[1] + margin)
 
         for plane in planes:
-            if plane.label == "wall" and plane.inlier_cloud:
+            label = getattr(plane, "label", "unknown") if not isinstance(plane, dict) else plane.get("label", "unknown")
+            inlier_cloud = getattr(plane, "inlier_cloud", None) if not isinstance(plane, dict) else plane.get("inlier_cloud")
+            if label == "wall" and inlier_cloud:
                 pts = np.asarray(inlier_cloud.points)
                 if len(pts) > 0:
                     ax.scatter(pts[:, 0], pts[:, 1], s=1,

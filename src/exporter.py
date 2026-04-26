@@ -33,15 +33,17 @@ class Exporter:
     ) -> str:
         """Deep-copies every labeled cloud, merges them, and writes a single colored .ply."""
         if output_path is None:
-            output_path = self.cfg.ply
+            output_path = getattr(self.cfg, "ply", "outputs/segmented.ply")
 
         all_pcds = []
         for plane in planes:
-            if plane.inlier_cloud:
-                all_pcds.append(copy.deepcopy(plane.inlier_cloud))
+            cloud = getattr(plane, "inlier_cloud", None) if not isinstance(plane, dict) else plane.get("inlier_cloud")
+            if cloud:
+                all_pcds.append(copy.deepcopy(cloud))
         for cluster in clusters:
-            if cluster.cloud:
-                all_pcds.append(copy.deepcopy(cluster.cloud))
+            cloud = getattr(cluster, "cloud", None) if not isinstance(cluster, dict) else cluster.get("cloud")
+            if cloud:
+                all_pcds.append(copy.deepcopy(cloud))
 
         if not all_pcds:
             raise ValueError("No point clouds to export — both planes and clusters are empty.")
@@ -61,11 +63,15 @@ class Exporter:
     ) -> str:
         """Writes a JSON report with per-plane and per-object metadata."""
         if output_path is None:
-            output_path = self.cfg.report
+            output_path = getattr(self.cfg, "report", "outputs/report.json")
+
+        # Convert dicts to models if necessary for validation
+        validated_planes = [PlaneResult(**p) if isinstance(p, dict) else p for p in planes]
+        validated_clusters = [ClusterResult(**c) if isinstance(c, dict) else c for c in clusters]
 
         report_model = SegmentationReport(
-            structural_planes=planes,
-            objects=clusters
+            structural_planes=validated_planes,
+            objects=validated_clusters
         )
         report_dict = report_model.model_dump(mode="json")
 

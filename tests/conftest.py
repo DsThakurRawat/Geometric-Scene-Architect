@@ -185,6 +185,7 @@ def make_plane(normal, centroid_z, n_pts=200):
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pts)
     return {
+        "plane_id": 0,
         "plane_model": [*normal, 0.0],
         "inlier_cloud": pcd,
         "inlier_count": n_pts,
@@ -221,7 +222,7 @@ def make_cluster(z_min, z_max, dims, n_pts=200):
     aabb = pcd.get_axis_aligned_bounding_box()
     actual_dims = (np.asarray(aabb.max_bound) - np.asarray(aabb.min_bound)).tolist()
     return {
-        "label_id": 0,
+        "cluster_id": 0,
         "cloud": pcd,
         "n_points": n_pts,
         "aabb": aabb,

@@ -10,10 +10,20 @@ class Preprocessor:
     """
 
     def __init__(self, config: Union[PreprocessingConfig, dict]):
-        if isinstance(config, dict):
-            self.cfg = PreprocessingConfig(**config.get("preprocessing", {}))
-        else:
-            self.cfg = config
+        self._raw_cfg = config
+        self._validated_cfg = None if isinstance(config, dict) else config
+
+    @property
+    def cfg(self) -> PreprocessingConfig:
+        if self._validated_cfg is None:
+            from pydantic import ValidationError
+            try:
+                # Handle both wrapped and unwrapped dicts
+                inner = self._raw_cfg.get("preprocessing", self._raw_cfg)
+                self._validated_cfg = PreprocessingConfig(**inner)
+            except ValidationError as e:
+                raise ValueError(str(e))
+        return self._validated_cfg
 
     def voxel_downsample(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """Reduces point density using voxel downsampling."""

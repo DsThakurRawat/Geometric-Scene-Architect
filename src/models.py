@@ -67,6 +67,16 @@ class PlaneResult(BaseModel):
     """
     model_config = {"arbitrary_types_allowed": True}
 
+    def __getitem__(self, item):
+        """Allows dictionary-like access for backward compatibility with tests."""
+        return getattr(self, item)
+
+    def __contains__(self, item):
+        return hasattr(self, item)
+
+    def keys(self):
+        return self.model_fields.keys()
+
     plane_id: int = Field(..., ge=0, description="Sequential plane index.")
     label: str = Field("unknown", description="Semantic label assigned by SemanticLabeler.")
     inlier_count: int = Field(..., gt=0)
@@ -107,6 +117,18 @@ class ClusterResult(BaseModel):
     for a single detected object cluster.
     """
     model_config = {"arbitrary_types_allowed": True}
+
+    def __getitem__(self, item):
+        """Allows dictionary-like access for backward compatibility with tests."""
+        if item == 'aabb':
+            return getattr(self, 'aabb_box', None)
+        return getattr(self, item)
+
+    def __contains__(self, item):
+        return hasattr(self, item)
+
+    def keys(self):
+        return self.model_fields.keys()
 
     cluster_id: int = Field(..., ge=0)
     label: str = Field("unknown")

@@ -52,7 +52,7 @@ class TestDBSCANClusterer:
         result = clusterer.cluster(pcd)
         if result:
             c = result[0]
-            for key in ["label_id", "cloud", "n_points", "aabb", "centroid",
+            for key in ["cluster_id", "cloud", "n_points", "aabb_box", "centroid",
                         "dims", "z_min", "z_max", "footprint_m2"]:
                 assert key in c, f"Missing key: {key}"
 
@@ -136,8 +136,8 @@ class TestDBSCANClusterer:
         result = clusterer.cluster(pcd)
         for c in result:
             cx, cy, cz = c["centroid"]
-            mn = c["aabb"].min_bound
-            mx = c["aabb"].max_bound
+            mn = c["aabb_box"].min_bound
+            mx = c["aabb_box"].max_bound
             assert mn[0] <= cx <= mx[0]
             assert mn[1] <= cy <= mx[1]
             assert mn[2] <= cz <= mx[2]
