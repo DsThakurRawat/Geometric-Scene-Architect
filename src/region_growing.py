@@ -40,13 +40,16 @@ class RegionGrowing:
             regions      – list of region dicts (with 'cloud', 'n_points', etc.)
             residual_pcd – points not assigned to any region.
         """
+        # Convert points to a NumPy array for fast calculations.
         pts = np.asarray(pcd.points)
+        # Total number of points in the cloud.
         n_pts = len(pts)
 
+        # If the cloud is too small, skip segmentation.
         if n_pts < 10:
             return [], pcd
 
-        # Ensure normals exist
+        # Region Growing depends on surface normals. If they don't exist, compute them.
         if not pcd.has_normals():
             pcd.estimate_normals(
                 search_param=o3d.geometry.KDTreeSearchParamHybrid(
@@ -54,6 +57,7 @@ class RegionGrowing:
                 )
             )
 
+        # Retrieve the computed normals.
         normals = np.asarray(pcd.normals)
 
         # ── Parameters ────────────────────────────────────────────────────
@@ -66,57 +70,80 @@ class RegionGrowing:
         cos_threshold = np.cos(np.radians(angle_threshold))
 
         # ── Curvature estimation (approximated by normal variation) ──────
+        # Use a KDTree for fast proximity searches (finding neighbors).
         kd_tree = o3d.geometry.KDTreeFlann(pcd)
+        # Initialize an array to store curvature values for every point.
         curvatures = np.zeros(n_pts)
 
+        # Calculate curvature for each point by looking at the variation of normals in its neighborhood.
         for i in range(n_pts):
+            # Find the k nearest neighbors for the current point.
             _, idx, _ = kd_tree.search_knn_vector_3d(pts[i], k_neighbours)
+            # If no neighbors, assign maximum curvature.
             if len(idx) < 2:
                 curvatures[i] = 1.0
                 continue
+            # Get normals of all neighbors.
             neighbour_normals = normals[idx[1:]]
-            # Curvature ≈ variance of normal dot products with seed normal
+            # Curvature ≈ variance of normal dot products with seed normal. 
+            # High variance = high curvature (the surface is curving steeply).
             dots = np.abs(neighbour_normals @ normals[i])
             curvatures[i] = 1.0 - np.mean(dots)
 
-        # Sort by curvature (start from flattest points)
+        # Sort all points by curvature. We want to start growing regions from the flattest points first.
         sorted_indices = np.argsort(curvatures)
 
-        # ── Region growing ────────────────────────────────────────────────
+        # Keep track of which points have already been assigned to a region.
         assigned = np.zeros(n_pts, dtype=bool)
+        # List to store the final grouped indices.
         regions: List[List[int]] = []
 
+        # Start from the flatest point and try to grow a region.
         for start_idx in sorted_indices:
+            # Skip if this point is already part of another region.
             if assigned[start_idx]:
                 continue
+            # Stop if we've reached the maximum allowed regions.
             if len(regions) >= max_regions:
                 break
 
-            # Start a new region from this seed
+            # Start a new region list.
             region: List[int] = []
+            # Use a 'seeds' queue to explore neighbors.
             seeds = [int(start_idx)]
+            # Mark the starting point as assigned.
             assigned[start_idx] = True
 
+            # Standard Breadth-First Search (BFS) for region growing.
             while seeds:
+                # Take a point from the queue.
                 seed = seeds.pop(0)
+                # Add it to the current region.
                 region.append(seed)
 
+                # Find its neighbors.
                 _, idx, _ = kd_tree.search_knn_vector_3d(pts[seed], k_neighbours)
 
+                # Check each neighbor for similarity.
                 for neighbour in idx[1:]:
+                    # Skip if already assigned.
                     if assigned[neighbour]:
                         continue
 
-                    # Check normal similarity
+                    # Check normal similarity using the dot product (cosine of the angle).
                     dot = abs(float(np.dot(normals[seed], normals[neighbour])))
+                    # If the angle difference is small enough, the neighbor belongs to this region.
                     if dot >= cos_threshold:
+                        # Mark as assigned and add to region.
                         assigned[neighbour] = True
                         region.append(neighbour)
 
-                        # If this neighbour is also flat, use it as a new seed
+                        # CRITICAL STEP: If this neighbor is also 'flat' enough, it becomes a new seed
+                        # allowing the algorithm to 'flow' across a large planar surface.
                         if curvatures[neighbour] < curvature_threshold:
                             seeds.append(int(neighbour))
 
+            # Only keep regions that meet the minimum size requirement.
             if len(region) >= min_region_size:
                 regions.append(region)
 

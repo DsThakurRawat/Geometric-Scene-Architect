@@ -69,6 +69,13 @@ def main():
         sys.exit(1)
 
     logger.info("--- 3D Room Segmentation Pipeline Started ---")
+    # INTERVIEW TIP: Pipeline Overview
+    # The pipeline follows a 'Cascading Extraction' pattern:
+    # 1. Load & Clean (Module 1-2)
+    # 2. Extract Dominant Geometry (Module 3 - RANSAC)
+    # 3. Cluster Residuals (Module 4 - DBSCAN)
+    # 4. Classify & Measure (Module 5-6)
+    # 5. Export (Module 7-8)
     logger.info(f"Input : {args.input}")
     logger.info(f"Config: {args.config}")
 
@@ -77,6 +84,7 @@ def main():
 
     try:
         # ── Module 1: Load & Normalize ────────────────────────────────────
+        # PURPOSE: Reading raw data and ensuring the floor is aligned with Z=0.
         start = time.perf_counter()
         loader = PointCloudLoader()
         pcd_raw = loader.load(args.input)
@@ -87,6 +95,8 @@ def main():
         timings["Load & Normalize"] = time.perf_counter() - start
 
         # ── Module 2: Preprocessing ───────────────────────────────────────
+        # PURPOSE: Denoising and downsampling to speed up processing.
+        # Estimating normals is CRITICAL for RANSAC to detect planes accurately.
         start = time.perf_counter()
         prep = Preprocessor(cfg.preprocessing)
         pcd_down = prep.voxel_downsample(pcd_norm)
@@ -96,6 +106,8 @@ def main():
         timings["Preprocessing"] = time.perf_counter() - start
 
         # ── Module 3: Structural Extraction (RANSAC) ─────────────────────
+        # PURPOSE: Finding flat surfaces (walls, floors).
+        # We remove these points so they don't interfere with object clustering.
         start = time.perf_counter()
         ransac = IterativeRANSAC(cfg.ransac)
         planes, residual_pcd = ransac.extract_planes(pcd_clean)
@@ -104,6 +116,7 @@ def main():
         timings["RANSAC"] = time.perf_counter() - start
 
         # ── Module 4: Residual Clustering (DBSCAN) ───────────────────────
+        # PURPOSE: Grouping the non-planar points into individual objects (chairs, tables).
         start = time.perf_counter()
         clusterer = DBSCANClusterer(cfg.dbscan)
         clusters = clusterer.cluster(residual_pcd)
@@ -111,6 +124,7 @@ def main():
         timings["DBSCAN"] = time.perf_counter() - start
 
         # ── Module 5: Semantic Labeling ──────────────────────────────────
+        # PURPOSE: Using geometric heuristics to decide what each plane/cluster is.
         start = time.perf_counter()
         labeler = SemanticLabeler(cfg.labeling)
         stats_clean = loader.validate(pcd_clean)
@@ -120,37 +134,53 @@ def main():
         timings["Labeling"] = time.perf_counter() - start
 
         # ── Module 6: Bounding Box Estimation ────────────────────────────
+        # PURPOSE: Calculating the tightest possible box (OBB) around each object
+        # to get true physical dimensions (width, depth, height).
         start = time.perf_counter()
+        # Initialize the estimator.
         bbox_est = BoundingBoxEstimator()
+        # Run the calculation for all clusters.
         labeled_clusters = bbox_est.compute(labeled_clusters)
+        # Store execution time.
         timings["BBox Estimation"] = time.perf_counter() - start
 
         # ── Module 7: Exporting Results ──────────────────────────────────
+        # PURPOSE: Saving the segmented 3D cloud and the summary report.
         start = time.perf_counter()
+        # Initialize the exporter.
         exporter = Exporter(cfg.output)
+        # If nothing was found, log a warning.
         if not labeled_planes and not labeled_clusters:
             logger.warning("No planes or clusters found — skipping PLY export.")
             output_ply = None
+            # Still export the (empty) report for consistency.
             output_json = exporter.export_report(labeled_planes, labeled_clusters)
         else:
+            # Save the merged, colored point cloud.
             output_ply = exporter.merge_and_export_ply(labeled_planes, labeled_clusters)
+            # Save the JSON report.
             output_json = exporter.export_report(labeled_planes, labeled_clusters)
         timings["Export"] = time.perf_counter() - start
 
         # ── Module 8: Top-Down Map Generation ────────────────────────────
+        # PURPOSE: Creating a 2D floor-plan view of the segmented scene.
         if not args.no_topdown:
             start = time.perf_counter()
+            # Initialize the mapper.
             mapper = TopDownMapper(cfg.output)
+            # Generate the image file.
             map_path = mapper.generate(labeled_planes, labeled_clusters)
             logger.info(f"Top-down map: {map_path}")
             timings["Top-Down Map"] = time.perf_counter() - start
 
         # ── Optional: Screenshot ─────────────────────────────────────────
+        # If requested, save a high-res static image of the 3D result.
         if args.screenshot:
             viz = Visualizer()
             viz.save_screenshot(labeled_planes, labeled_clusters, cfg.output.screenshot)
             logger.info(f"Screenshot saved.")
 
+        # Log final summary statistics to the console.
         total_time = time.perf_counter() - total_start
         logger.info("--- Execution Summary ---")
         logger.info(f"  Planes found    : {len(labeled_planes)}")
@@ -158,6 +188,7 @@ def main():
         logger.info(f"  Segmented PLY   : {output_ply}")
         logger.info(f"  Report JSON     : {output_json}")
 
+        # Log detailed timing breakdown for each stage.
         logger.info("--- Timing Summary ---")
         for stage, duration in timings.items():
             logger.info(f"  {stage:<18}: {duration:.3f}s")

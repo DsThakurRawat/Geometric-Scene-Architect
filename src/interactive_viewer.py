@@ -129,29 +129,41 @@ class SemanticViewer:
         print(f"Exported corrected labels to {path}")
 
     def _load_scene(self):
+        """Clears the 3D viewport and re-adds all geometries (planes and clusters)."""
+        # Remove any existing 3D objects from the scene.
         self.scene.scene.clear_geometry()
+        # Define a material with basic lighting (shading).
         mat = rendering.MaterialRecord()
         mat.shader = "defaultLit"
 
-        # Planes
+        # Iterate through every structural plane.
         for i, plane in enumerate(self.planes):
+            # Get the point cloud.
             pcd = plane["inlier_cloud"]
+            # Get the color for its current label.
             color = LABEL_COLORS.get(plane.get("label", "unknown"), LABEL_COLORS["unknown"])
+            # Paint the points.
             pcd.paint_uniform_color(color)
+            # Add the plane to the 3D scene widget.
             self.scene.scene.add_geometry(f"plane_{i}", pcd, mat)
 
-        # Clusters
+        # Iterate through every object cluster.
         for i, cluster in enumerate(self.clusters):
+            # Get the point cloud.
             pcd = cluster["cloud"]
+            # Get the color for its label.
             color = LABEL_COLORS.get(cluster.get("label", "unknown"), LABEL_COLORS["unknown"])
+            # Paint it.
             pcd.paint_uniform_color(color)
+            # Add it to the scene.
             self.scene.scene.add_geometry(f"cluster_{i}", pcd, mat)
 
-        # Set camera bounding box
+        # Automatically adjust the camera to fit all objects in the view.
         bounds = self.scene.scene.bounding_box
         self.scene.setup_camera(60, bounds, bounds.get_center())
 
     def run(self):
+        """Starts the GUI application event loop."""
         self.app.run()
 
 

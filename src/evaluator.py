@@ -39,14 +39,18 @@ class SegmentationEvaluator:
         Builds a confusion matrix as a nested dict:
             matrix[true_label][pred_label] = count
         """
+        # Create a nested dictionary initialized with zeros for every label pair.
         matrix: Dict[str, Dict[str, int]] = {
             t: {p: 0 for p in self.labels} for t in self.labels
         }
 
+        # Compare each ground-truth label against the predicted label.
         for true, pred in zip(y_true, y_pred):
+            # If both labels are valid, increment the count in the matrix.
             if true in matrix and pred in matrix[true]:
                 matrix[true][pred] += 1
 
+        # Return the completed matrix.
         return matrix
 
     def per_class_metrics(
@@ -58,26 +62,35 @@ class SegmentationEvaluator:
         Returns:
             { label: {"precision": p, "recall": r, "f1": f, "support": n} }
         """
+        # First, generate the confusion matrix.
         matrix = self.confusion_matrix(y_true, y_pred)
+        # Initialize an empty dictionary to hold the final metrics.
         metrics: Dict[str, Dict[str, float]] = {}
 
+        # Loop through every possible label.
         for label in self.labels:
+            # True Positives: Predicted correctly as 'label'.
             tp = matrix[label][label]
-            # FP = predicted as `label` but true is something else
+            # False Positives: Predicted as 'label' but actually something else.
             fp = sum(matrix[t][label] for t in self.labels if t != label)
-            # FN = true is `label` but predicted as something else
+            # False Negatives: Actually 'label' but predicted as something else.
             fn = sum(matrix[label][p] for p in self.labels if p != label)
 
+            # Precision: How many of our 'label' predictions were actually correct?
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+            # Recall: How many of the actual 'label' instances did we find?
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+            # F1 Score: The harmonic mean of precision and recall.
             f1 = (
                 2 * precision * recall / (precision + recall)
                 if (precision + recall) > 0
                 else 0.0
             )
 
-            support = tp + fn  # number of actual instances of this label
+            # Support: The total number of ground-truth occurrences for this label.
+            support = tp + fn
 
+            # Store the rounded results.
             metrics[label] = {
                 "precision": round(precision, 4),
                 "recall": round(recall, 4),
@@ -100,6 +113,7 @@ class SegmentationEvaluator:
         """
         Full evaluation: accuracy + per-class metrics + confusion matrix.
         """
+        # Return a dictionary containing all computed evaluation data.
         return {
             "accuracy": self.overall_accuracy(y_true, y_pred),
             "per_class": self.per_class_metrics(y_true, y_pred),

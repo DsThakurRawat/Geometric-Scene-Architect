@@ -5,32 +5,48 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 # ── Configuration Models ─────────────────────────────────────────────────────
 
+# INTERVIEW TIP: Why Pydantic? 
+# Interviewers might ask why we use Pydantic models. 
+# Answer: It provides runtime type validation, clear schema definition, 
+# and easy serialization/deserialization for the configuration and reports.
+
 class SORConfig(BaseModel):
-    nb_neighbors: int = Field(20, gt=0)
-    std_ratio: float = Field(2.0, gt=0)
+    nb_neighbors: int = Field(20, gt=0) # Number of neighbors to analyze for outlier removal
+    std_ratio: float = Field(2.0, gt=0) # Standard deviation multiplier for thresholding
 
 class NormalEstimationConfig(BaseModel):
-    radius: float = Field(0.1, gt=0)
-    max_nn: int = Field(30, gt=0)
-    orient_k: int = Field(15, gt=0)
+    """
+    Settings for computing surface normals.
+    Normals are required for RANSAC and Region Growing to understand surface orientation.
+    """
+    radius: float = Field(0.1, gt=0)   # Radius of neighborhood to consider for each point
+    max_nn: int = Field(30, gt=0)     # Maximum neighbors to search within the radius
+    orient_k: int = Field(15, gt=0)   # Neighbors used to orient normals consistently
 
 class RORConfig(BaseModel):
     radius: float = Field(0.1, gt=0)
     min_neighbors: int = Field(10, gt=0)
 
 class PreprocessingConfig(BaseModel):
+    """
+    Groups all preprocessing hyperparameters. 
+    Voxel size controls the resolution of the downsampled cloud.
+    """
     voxel_size: float = Field(0.05, gt=0)
     sor: SORConfig = Field(default_factory=SORConfig)
     ror: RORConfig = Field(default_factory=RORConfig)
     normal_estimation: NormalEstimationConfig = Field(default_factory=NormalEstimationConfig)
 
 class RansacConfig(BaseModel):
-    distance_threshold: float = Field(0.02, gt=0)
-    ransac_n: int = Field(3, ge=3)
-    num_iterations: int = Field(2000, gt=0)
-    min_plane_size: int = Field(1000, gt=0)
-    max_planes: int = Field(10, gt=0)
-    remaining_points_min: int = Field(500, ge=0)
+    """
+    RANSAC (Random Sample Consensus) Hyperparameters.
+    """
+    distance_threshold: float = Field(0.02, gt=0) # Max distance from plane to be an inlier (metres)
+    ransac_n: int = Field(3, ge=3)               # Min points to define a plane model (3 points = 1 plane)
+    num_iterations: int = Field(2000, gt=0)      # How many times to try random samples
+    min_plane_size: int = Field(1000, gt=0)      # Planes with fewer points are ignored
+    max_planes: int = Field(10, gt=0)            # Maximum number of planes to extract
+    remaining_points_min: int = Field(500, ge=0) # Stop if fewer than this many points remain
 
 class DbscanConfig(BaseModel):
     eps: float = Field(0.1, gt=0)
@@ -39,15 +55,18 @@ class DbscanConfig(BaseModel):
     max_object_size: float = Field(3.0, gt=0)
 
 class LabelingConfig(BaseModel):
-    floor_z_threshold: float = Field(0.15)
-    ceiling_z_fraction: float = Field(0.8, ge=0, le=1.0)
-    horizontal_angle_deg: float = Field(15, ge=0, le=90)
-    vertical_angle_deg: float = Field(75, ge=0, le=90)
-    tall_furniture_min_h: float = Field(1.5, gt=0)
-    furniture_min_footprint: float = Field(0.3, gt=0)
-    furniture_min_h: float = Field(0.3, gt=0)
-    small_object_max_footprint: float = Field(0.5, gt=0)
-    high_fixture_min_z: float = Field(1.5, gt=0)
+    """
+    Heuristics for semantic classification.
+    """
+    floor_z_threshold: float = Field(0.15)            # Planes below this Z are floors
+    ceiling_z_fraction: float = Field(0.8, ge=0, le=1.0) # Planes above this fraction of max height are ceilings
+    horizontal_angle_deg: float = Field(15, ge=0, le=90) # Max angle from Z-axis to be 'horizontal'
+    vertical_angle_deg: float = Field(75, ge=0, le=90)   # Min angle from Z-axis to be 'vertical' (wall)
+    tall_furniture_min_h: float = Field(1.5, gt=0)      # Objects taller than this are 'tall_furniture'
+    furniture_min_footprint: float = Field(0.3, gt=0)   # Min area (W*D) to be considered furniture
+    furniture_min_h: float = Field(0.3, gt=0)           # Min height to be considered furniture
+    small_object_max_footprint: float = Field(0.5, gt=0)# Max area for 'small_object'
+    high_fixture_min_z: float = Field(1.5, gt=0)        # Objects starting above this Z are 'high_fixtures'
 
 class OutputConfig(BaseModel):
     ply: str = "outputs/segmented_room.ply"
@@ -83,10 +102,10 @@ class PlaneResult(BaseModel):
         return self.model_fields.keys()
 
     plane_id: int = Field(..., ge=0, description="Sequential plane index.")
-    label: str = Field("unknown", description="Semantic label assigned by SemanticLabeler.")
-    inlier_count: int = Field(..., gt=0)
-    centroid_z: float
-    normal: List[float] = Field(..., min_length=3, max_length=3)
+    label: str = Field("unknown", description="Semantic label (floor, wall, etc.).")
+    inlier_count: int = Field(..., gt=0) # Number of points that fit this plane
+    centroid_z: float                 # Average Z coordinate (used for floor/ceiling check)
+    normal: List[float] = Field(..., min_length=3, max_length=3) # [nx, ny, nz] unit vector
     plane_model: List[float] = Field(..., min_length=4, max_length=4,
                                      description="[a, b, c, d] coefficients of ax+by+cz+d=0.")
     
@@ -103,6 +122,9 @@ class PlaneResult(BaseModel):
     @field_validator("label")
     @classmethod
     def label_is_known(cls, v: str) -> str:
+        # INTERVIEW TIP: Why use a fixed set of labels?
+        # Answer: Ensures consistency between labeling logic and visualization/exporting.
+        # It prevents typos in labels from breaking the pipeline.
         valid = {
             "floor", "ceiling", "wall", "horizontal_surface",
             "unknown", "noise"
@@ -135,17 +157,17 @@ class ClusterResult(BaseModel):
     def keys(self):
         return self.model_fields.keys()
 
-    cluster_id: int = Field(..., ge=0)
-    label: str = Field("unknown")
-    confidence: float = Field(0.5, ge=0.0, le=1.0, description="Label confidence score.")
-    n_points: int = Field(..., gt=0)
-    point_density: float = Field(0.0, ge=0.0, description="Points per cubic metre.")
-    centroid: List[float] = Field(..., min_length=3, max_length=3)
+    cluster_id: int = Field(..., ge=0) # Unique ID for the object cluster
+    label: str = Field("unknown")    # Semantic label (furniture, chair, etc.)
+    confidence: float = Field(0.5, ge=0.0, le=1.0, description="Label confidence score.") # Probability [0, 1]
+    n_points: int = Field(..., gt=0) # Number of points in this cluster
+    point_density: float = Field(0.0, ge=0.0, description="Points per cubic metre.") # How packed the points are
+    centroid: List[float] = Field(..., min_length=3, max_length=3) # [x, y, z] center of the object
     dims: List[float] = Field(..., min_length=3, max_length=3,
-                               description="[width, depth, height] in metres.")
-    z_min: float
-    z_max: float
-    footprint_m2: float = Field(..., ge=0.0)
+                               description="[width, depth, height] in metres.") # Physical size
+    z_min: float # Lowest Z coordinate (floor contact)
+    z_max: float # Highest Z coordinate
+    footprint_m2: float = Field(..., ge=0.0) # Horizontal area (width * depth)
 
     # Optional — only present after BoundingBoxEstimator
     obb_extent: Optional[List[float]] = None
