@@ -19,7 +19,7 @@ For a deep-dive into the project's logic and architecture, please refer to the f
 
 ## 📸 Visual Results
 
-|                   Final Semantic Segmentation                   |                 2D Top-Down Projection                 |
+|                   Final Semantic Segmentation                   |                 2D Top-Down Projection      h           |
 | :-------------------------------------------------------------: | :-----------------------------------------------------: |
 |     ![Final Segmentation](docs/images/final_segmentation.png)     |    ![Top-Down Map](docs/images/debug_segmentation.png)    |
 | *Color-coded: Floor (Brown), Walls (Blue), Furniture (Green)* | *Occupancy grid with identified furniture footprints* |
