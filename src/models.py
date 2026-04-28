@@ -201,7 +201,7 @@ class ClusterResult(BaseModel):
     cloud: Optional[o3d.geometry.PointCloud] = Field(None, exclude=True)
     aabb_box: Optional[o3d.geometry.AxisAlignedBoundingBox] = Field(None, exclude=True)
     obb_box: Optional[o3d.geometry.OrientedBoundingBox] = Field(None, exclude=True)
-
+# Pydantic gives you free data validation, type safety, and JSON serialization
     @model_validator(mode="after")
     def z_min_le_z_max(self) -> "ClusterResult":
         """Validator to ensure the bottom of an object isn't higher than its top."""

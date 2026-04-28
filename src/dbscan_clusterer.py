@@ -5,8 +5,8 @@ from typing import List, Union
 from src.models import ClusterResult, DbscanConfig
 
 logger = logging.getLogger(__name__)
-
-
+#Groups data into clusters based on density, and marks sparse points as noise (outliers).
+#(Density-Based Spatial Clustering of Applications with Noise
 class DBSCANClusterer:
     """
     Module 4: Residual Clustering (DBSCAN)

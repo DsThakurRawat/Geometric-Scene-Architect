@@ -2,6 +2,19 @@ import open3d as o3d
 from typing import Tuple, Union
 from src.models import PreprocessingConfig
 
+# Cleaning the Data
+"""
+1. Preprocessing Module (src/preprocessor.py)
+
+This is where you clean the "raw" point cloud.
+Think of it like preparing vegetables before cooking.
+You don't want dirt, leaves, or random stems in your final dish.
+
+What it does:
+Downsampling: Reduces the number of points (like chopping vegetables into smaller, manageable pieces).
+Noise Removal: Removes floating points or small clusters that aren't part of the main object (like removing dirt or bad spots).
+Normal Estimation: Calculates which way each surface is facing (like figuring out which side of the carrot is the top, bottom, and sides).
+"""
 
 class Preprocessor:
     """
@@ -29,6 +42,7 @@ class Preprocessor:
                 raise ValueError(str(e))
         return self._validated_cfg
 
+
     def voxel_downsample(self, pcd: o3d.geometry.PointCloud) -> o3d.geometry.PointCloud:
         """
         Reduces point density using voxel downsampling.
@@ -44,7 +58,7 @@ class Preprocessor:
         self, pcd: o3d.geometry.PointCloud
     ) -> Tuple[o3d.geometry.PointCloud, o3d.geometry.PointCloud]:
         """
-        Removes floating scan noise via Statistical Outlier Removal (SOR).
+        Removes floating scan noise via "Statistical Outlier Removal (SOR)".
         Returns (clean_pcd, outlier_pcd).
         
         INTERVIEW TIP: How does SOR work?
