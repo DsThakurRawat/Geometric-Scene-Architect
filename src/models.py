@@ -24,6 +24,7 @@ There are two main result types:
 Why this matters in interviews: Pydantic gives you free data validation, type safety, 
 and JSON serialization. The interviewer will appreciate knowing you understand how to 
 enforce data integrity in a complex pipeline.
+
 """
 
 import open3d as o3d                      # Import Open3D for 3D data structures (PointClouds, BoundingBoxes)
