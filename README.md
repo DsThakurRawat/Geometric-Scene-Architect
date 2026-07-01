@@ -1,4 +1,4 @@
-# 3D Room Scene Semantic Segmentation Assignment- Divyansh Rawat
+# Geometric Scene Architect
 
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Open3D](https://img.shields.io/badge/Open3D-0.19.0-green.svg)](http://www.open3d.org/)
@@ -52,8 +52,8 @@ The pipeline follows a two-stage expert system approach to ensure clean separati
 
 ```bash
 # Clone the repository
-git clone https://github.com/ERICR-recruiter/l02-DsThakurRawat.git
-cd l02-DsThakurRawat
+git clone https://github.com/DsThakurRawat/Geometric-Scene-Architect.git
+cd Geometric-Scene-Architect
 
 # Setup environment
 python3 -m venv venv
@@ -109,13 +109,10 @@ python3 -m pytest tests/ -v
 
 ---
 
-## 📞 Contact Info
+## 👤 Author
 
 - **Name**: Divyansh Rawat
-- **Contact number(s)**: +91 6261283255 
-- **Email address(es)**: [divyanshthakur594@gmail.com](mailto:divyanshthakur594@gmail.com)
-- **GitHub Username**: DsThakurRawat
+- **Email**: [divyanshthakur594@gmail.com](mailto:divyanshthakur594@gmail.com)
+- **GitHub**: [DsThakurRawat](https://github.com/DsThakurRawat)
 
 ---
-
-*Good luck! This assignment will test your ability to reason about geometry and clustering in 3D scenes.*

@@ -1,6 +1,6 @@
-# 3D Room Segmentation Pipeline - Technical Documentation
+# 3D Room Segmentation Pipeline — Technical Documentation
 
-This document provides detailed instructions for installation, usage, and technical heuristics of the 3D segmentation solution implemented by **Divyansh Rawat**.
+This document provides detailed instructions for installation, usage, and technical heuristics of the Geometric Scene Architect pipeline.
 
 ## Table of Contents
 
@@ -71,4 +71,3 @@ python3 -m pytest tests/ -v
 ```
 
 ---
-*Developed for the ERIC Robotics ML Intern Selection Process.*
