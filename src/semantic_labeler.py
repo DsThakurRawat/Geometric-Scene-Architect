@@ -44,56 +44,74 @@ class SemanticLabeler:
 
     # ── Plane labeling ────────────────────────────────────────────────────
 
+    @staticmethod
+    def _plane_geom(plane):
+        """Return (normal_z_abs, angle_from_vertical_deg, centroid_z) or None if the normal is degenerate."""
+        normal = np.array(
+            getattr(plane, 'normal', [0, 0, 0]) if not isinstance(plane, dict) else plane.get('normal', [0, 0, 0]),
+            dtype=float,
+        )
+        norm_len = np.linalg.norm(normal)
+        if norm_len < 1e-9:
+            return None
+        nz = abs(float(normal[2] / norm_len))
+        angle_from_vertical = math.degrees(math.acos(min(nz, 1.0)))
+        centroid_z = float(getattr(plane, 'centroid_z', 0.0) if not isinstance(plane, dict) else plane.get('centroid_z', 0.0))
+        return nz, angle_from_vertical, centroid_z
+
     def label_planes(self, planes: List[PlaneResult], scene_height: float) -> List[PlaneResult]:
-        """Labels structural planes (floor / ceiling / wall / unknown)."""
-        # Pull threshold values from the config for use in the labeling logic.
+        """Labels structural planes (floor / ceiling / wall / unknown).
+
+        Ceiling detection anchors on the TOPMOST horizontal plane in the scene rather than a
+        fixed fraction of the raw z-extent. The old `centroid_z > scene_height * ceiling_z_fraction`
+        rule silently demoted a real, flat ceiling to `horizontal_surface` whenever anything above it
+        (ducts, beams, a sloped roof, high fixtures) inflated `scene_height` — e.g. an S3DIS hallway
+        whose 3.05 m ceiling fell just under 0.8 x 3.93 m. Anchoring on the highest horizontal plane
+        is robust to that overhead clutter; `min_ceiling_z` keeps low tables from ever being promoted.
+        """
         floor_z_thr   = self.cfg.floor_z_threshold
         ceil_z_frac   = self.cfg.ceiling_z_fraction
+        ceiling_band  = self.cfg.ceiling_band_m
+        min_ceiling_z = self.cfg.min_ceiling_z
         horiz_ang_thr = self.cfg.horizontal_angle_deg
         vert_ang_thr  = self.cfg.vertical_angle_deg
 
-        # Ensure scene_height is positive to avoid division by zero.
         effective_height = max(scene_height, 0.1)
 
-        # Iterate through each detected plane to assign a label.
+        # ── pre-pass: the ceiling reference is the highest horizontal plane above the floor ──
+        horizontal_zs = []
         for plane in planes:
-            # Extract the normal vector of the plane.
-            normal = np.array(getattr(plane, 'normal', [0,0,0]) if not isinstance(plane, dict) else plane.get('normal', [0,0,0]), dtype=float)
-            # Calculate the length (norm) of the vector.
-            norm_len = np.linalg.norm(normal)
-            
-            # If the normal is zero or invalid, we can't determine orientation.
-            if norm_len < 1e-9:
+            g = self._plane_geom(plane)
+            if g is None:
+                continue
+            _, angle_from_vertical, centroid_z = g
+            if angle_from_vertical < horiz_ang_thr and centroid_z >= floor_z_thr:
+                horizontal_zs.append(centroid_z)
+        # Fall back to the legacy fraction rule only when no horizontal plane was found at all.
+        ceiling_ref = max(horizontal_zs) if horizontal_zs else effective_height * ceil_z_frac
+
+        # ── main pass ──
+        for plane in planes:
+            g = self._plane_geom(plane)
+            if g is None:
+                # Degenerate normal — orientation is undefined.
                 if not isinstance(plane, dict): plane.label = "unknown"
                 else: plane["label"] = "unknown"
-                
-                # Try to color the cloud purple to indicate 'unknown'.
                 inlier_cloud = getattr(plane, 'inlier_cloud', None) if not isinstance(plane, dict) else plane.get('inlier_cloud')
                 if inlier_cloud:
                     inlier_cloud.paint_uniform_color(LABEL_COLORS["unknown"])
                 continue
 
-            # Normalize the vector to have a length of 1.
-            normal /= norm_len
-            # Get the Z-component of the normal. 
-            # If nz is 1.0, the plane is perfectly horizontal. If nz is 0.0, it's perfectly vertical.
-            nz = abs(float(normal[2]))
-            # Convert the vertical component into an angle in degrees relative to the vertical axis.
-            angle_from_vertical = math.degrees(math.acos(min(nz, 1.0)))
-            # Get the average height (Z) of the plane's points.
-            centroid_z = float(getattr(plane, 'centroid_z', 0.0) if not isinstance(plane, dict) else plane.get('centroid_z', 0.0))
+            nz, angle_from_vertical, centroid_z = g
 
-            # Default label is unknown.
             label = "unknown"
-            # If the angle is small, the plane is horizontal (floor or ceiling).
+            # If the angle is small, the plane is horizontal (floor / ceiling / table-top).
             if angle_from_vertical < horiz_ang_thr:
-                # If it's near the bottom of the scene, it's a floor.
                 if centroid_z < floor_z_thr:
                     label = "floor"
-                # If it's near the top of the scene, it's a ceiling.
-                elif centroid_z > effective_height * ceil_z_frac:
+                # Ceiling = a horizontal plane near the topmost horizontal plane, and plausibly high.
+                elif centroid_z >= ceiling_ref - ceiling_band and centroid_z >= min_ceiling_z:
                     label = "ceiling"
-                # Otherwise, it's a horizontal surface like a table top.
                 else:
                     label = "horizontal_surface"
             # If the angle is large, the plane is vertical (a wall).

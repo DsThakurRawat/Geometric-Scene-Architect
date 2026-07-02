@@ -25,7 +25,7 @@ class TestPlaneResult:
             assert p.label == lbl
 
     def test_invalid_label_raises(self):
-        with pytest.raises(ValidationError, match="recognised semantic label"):
+        with pytest.raises(ValidationError, match="is invalid"):
             self._valid(label="sofa")
 
     def test_zero_normal_raises(self):
@@ -70,7 +70,7 @@ class TestClusterResult:
             self._valid(dims=[-1.0, 1.0, 0.5])
 
     def test_invalid_cluster_label_raises(self):
-        with pytest.raises(ValidationError, match="recognised semantic label"):
+        with pytest.raises(ValidationError, match="is invalid"):
             self._valid(label="bookshelf")
 
     def test_obb_fields_optional(self):
