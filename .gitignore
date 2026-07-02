@@ -3,20 +3,23 @@ __pycache__/
 *.py[cod]
 *$py.class
 venv/
+.venv/
 .env
 
 # Jupyter Notebook
 .ipynb_checkpoints
 
 # 3D Data
-data/raw/
-data/processed/
-data/synthetic/
+data/
 outputs/
 *.ply
 *.pcd
 *.pcd.bin
 *.ply.bin
+
+# Models
+models/*
+!models/.gitkeep
 
 # Project Specific
 .DS_Store
