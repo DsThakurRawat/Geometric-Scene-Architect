@@ -8,3 +8,7 @@ tqdm
 pyyaml
 pydantic>=2.0
 pytest
+# Feature-ML arm, result tables, model persistence (Phases 2, 4, 5)
+pandas
+joblib
+xgboost
