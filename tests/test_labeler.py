@@ -17,6 +17,29 @@ class TestLabelPlanes:
         planes = labeler.label_planes([make_plane([0, 0, 1], 2.8)], SCENE_HEIGHT)
         assert planes[0]["label"] == "ceiling"
 
+    def test_ceiling_below_fraction_recovered_by_topmost_horizontal(self, base_cfg):
+        """Regression: a flat ceiling sitting below ceiling_z_fraction * scene_height
+        (overhead ducts/beams inflate scene_height) must still be labeled ceiling
+        because it is the topmost horizontal plane. Mirrors S3DIS hallway_1, where the
+        old 0.8*scene_height rule silently demoted the ceiling to horizontal_surface."""
+        labeler = SemanticLabeler(base_cfg)
+        planes = [
+            make_plane([0, 0, 1], 0.01),     # floor
+            make_plane([0, 0, 1], 3.05),     # real flat ceiling (topmost horizontal)
+            make_plane([1, 0, 0.1], 3.50),   # near-vertical duct overhead -> wall, inflates z-extent
+        ]
+        # scene_height 3.93 -> old threshold 0.8*3.93 = 3.14 > 3.05 would have mislabeled it.
+        result = labeler.label_planes(planes, scene_height=3.93)
+        assert result[1]["label"] == "ceiling"
+
+    def test_lone_table_not_promoted_to_ceiling(self, base_cfg):
+        """The topmost-horizontal rule must not promote a mid-height table to ceiling
+        when no real ceiling plane exists (guarded by min_ceiling_z)."""
+        labeler = SemanticLabeler(base_cfg)
+        planes = [make_plane([0, 0, 1], 0.01), make_plane([0, 0, 1], 0.75)]
+        result = labeler.label_planes(planes, SCENE_HEIGHT)
+        assert result[1]["label"] == "horizontal_surface"
+
     def test_wall_x_facing(self, base_cfg):
         labeler = SemanticLabeler(base_cfg)
         planes = labeler.label_planes([make_plane([1, 0, 0], 1.5)], SCENE_HEIGHT)

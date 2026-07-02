@@ -90,7 +90,9 @@ class LabelingConfig(BaseModel):
     Heuristics for semantic classification (turning clusters into 'chairs', 'tables', etc.).
     """
     floor_z_threshold: float = Field(0.15)            # Any plane below 15cm is likely the floor
-    ceiling_z_fraction: float = Field(0.8, ge=0, le=1.0) # Planes in the top 20% of the room height are ceilings
+    ceiling_z_fraction: float = Field(0.8, ge=0, le=1.0) # (legacy) fallback fraction if no horizontal planes found
+    ceiling_band_m: float = Field(0.6, gt=0)          # A horizontal plane within this many metres of the TOPMOST horizontal plane is ceiling
+    min_ceiling_z: float = Field(1.8, gt=0)           # No indoor ceiling sits below this height; guards low tables from ceiling promotion
     horizontal_angle_deg: float = Field(15, ge=0, le=90) # Max tilt angle for a surface to be considered "flat/horizontal"
     vertical_angle_deg: float = Field(75, ge=0, le=90)   # Min angle for a surface to be considered a "vertical wall"
     tall_furniture_min_h: float = Field(1.5, gt=0)      # Objects taller than 1.5m are labeled as tall furniture

@@ -1,0 +1,80 @@
+"""Tests for the point-level S3DIS evaluator (Phase 1 core)."""
+import numpy as np
+import pytest
+
+from src.s3dis_evaluator import align_labels, compute_metrics, confusion_matrix
+
+
+def test_align_labels_toy_cloud_nearest_neighbour():
+    # src has two labelled points; dst points sit next to each one.
+    src_pts = np.array([[0.0, 0.0, 0.0], [10.0, 0.0, 0.0]])
+    src_lbl = np.array([1, 2])
+    dst_pts = np.array([[0.1, 0.0, 0.0], [9.9, 0.0, 0.0], [0.2, 0.1, 0.0]])
+    out = align_labels(src_pts, src_lbl, dst_pts)
+    assert out.tolist() == [1, 2, 1]
+
+
+def test_align_labels_exact_match_preserves_labels():
+    pts = np.random.RandomState(0).rand(50, 3)
+    lbl = np.random.RandomState(1).randint(0, 4, size=50)
+    out = align_labels(pts, lbl, pts)  # identical dst -> identical labels
+    assert out.tolist() == lbl.tolist()
+
+
+def test_align_labels_empty_dst():
+    src_pts = np.array([[0.0, 0.0, 0.0]])
+    src_lbl = np.array([3])
+    out = align_labels(src_pts, src_lbl, np.zeros((0, 3)))
+    assert out.shape == (0,)
+
+
+def test_align_labels_empty_src_raises():
+    with pytest.raises(ValueError):
+        align_labels(np.zeros((0, 3)), np.zeros((0,)), np.ones((2, 3)))
+
+
+def test_iou_hand_computed_two_class():
+    # class 0: 3 gt; class 1: 3 gt. One point of each is mislabelled.
+    gt = np.array([0, 0, 0, 1, 1, 1])
+    pred = np.array([0, 0, 1, 1, 1, 0])
+    # class 0: TP=2, FP=1 (the last point pred 0), FN=1 -> IoU = 2/(2+1+1)=0.5
+    # class 1: TP=2, FP=1, FN=1 -> IoU=0.5 ; mIoU=0.5
+    m = compute_metrics(pred, gt, ["a", "b"])
+    assert m["per_class"]["a"]["iou"] == pytest.approx(0.5)
+    assert m["per_class"]["b"]["iou"] == pytest.approx(0.5)
+    assert m["miou"] == pytest.approx(0.5)
+    assert m["overall_accuracy"] == pytest.approx(4 / 6, abs=1e-4)
+
+
+def test_perfect_prediction_iou_one():
+    gt = np.array([0, 1, 2, 2, 1, 0])
+    m = compute_metrics(gt.copy(), gt, ["a", "b", "c"])
+    assert m["miou"] == pytest.approx(1.0)
+    assert m["overall_accuracy"] == pytest.approx(1.0)
+
+
+def test_miou_only_over_present_classes():
+    # class 2 never appears in GT -> excluded from mIoU
+    gt = np.array([0, 0, 1, 1])
+    pred = np.array([0, 0, 1, 1])
+    m = compute_metrics(pred, gt, ["a", "b", "c"])
+    assert "c" not in m["present_classes"]
+    assert m["miou"] == pytest.approx(1.0)
+
+
+def test_ignore_index_excludes_points():
+    gt = np.array([0, 1, 2, 2])
+    pred = np.array([0, 1, 0, 0])  # the two class-2 points are wrong
+    m = compute_metrics(pred, gt, ["a", "b", "ignore"], ignore_index=2)
+    # class 2 dropped entirely; a and b perfect
+    assert m["miou"] == pytest.approx(1.0)
+    assert m["per_class"]["a"]["iou"] == pytest.approx(1.0)
+
+
+def test_confusion_matrix_shape_and_counts():
+    gt = np.array([0, 0, 1])
+    pred = np.array([0, 1, 1])
+    cm = confusion_matrix(pred, gt, 2)
+    assert cm.shape == (2, 2)
+    # row = true, col = pred
+    assert cm[0, 0] == 1 and cm[0, 1] == 1 and cm[1, 1] == 1
