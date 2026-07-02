@@ -1,0 +1,15 @@
+# configs/s3dis.yaml
+
+data:
+  raw_dir: "data/s3dis/Stanford3dDataset_v1.2_Aligned_Version"
+  processed_dir: "data/s3dis/processed"
+
+split:
+  test_area: 5
+  train_areas: [1, 2, 3, 4, 6]
+
+preprocessing:
+  voxel_size: 0.03
+
+evaluation:
+  label_space: "FULL13"  # Choices: STRUCT4, FULL13
