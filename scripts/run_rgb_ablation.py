@@ -21,11 +21,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.s3dis_loader import iter_area
 from src.point_predictor import PointPredictor
-from src.s3dis_evaluator import align_labels, compute_metrics
+from src.s3dis_evaluator import align_labels, confusion_matrix, metrics_from_confusion
 from src.feature_ml import FeatureML
 from src.label_spaces import S3DIS_CLASSES
 
 _CLUTTER = S3DIS_CLASSES.index("clutter")
+_N = len(S3DIS_CLASSES)
 
 
 def seg_features(seg, use_rgb):
@@ -86,7 +87,8 @@ def train_variant(rooms, use_rgb):
 
 
 def eval_variant(model, rooms, use_rgb):
-    mious, oas = [], []
+    """Standard S3DIS global mIoU: accumulate one confusion matrix over all test points."""
+    cm_total = np.zeros((_N, _N), dtype=np.int64)
     for r in rooms:
         pred = np.full(len(r["clean_pts"]), _CLUTTER, dtype=np.int64)
         segs = r["segs"]
@@ -96,11 +98,9 @@ def eval_variant(model, rooms, use_rgb):
             for s, c in zip(segs, yhat):
                 pred[s["indices"]] = int(c)
         pred_full = align_labels(r["clean_pts"], pred, r["points"][:, :3])
-        m = compute_metrics(pred_full, r["gt13"].astype(np.int64), S3DIS_CLASSES)
-        mious.append(m["miou"])
-        oas.append(m["overall_accuracy"])
-    return {"miou_mean": round(float(np.mean(mious)), 4),
-            "oa_mean": round(float(np.mean(oas)), 4), "n_rooms": len(rooms)}
+        cm_total += confusion_matrix(pred_full, r["gt13"].astype(np.int64), _N)
+    g = metrics_from_confusion(cm_total, S3DIS_CLASSES)
+    return {"miou": g["miou"], "oa": g["overall_accuracy"], "n_rooms": len(rooms)}
 
 
 def main():
@@ -126,7 +126,7 @@ def main():
     for use_rgb, name in [(False, "xyz"), (True, "xyz+rgb")]:
         model = train_variant(train_rooms, use_rgb)
         results[name] = eval_variant(model, test_rooms, use_rgb)
-        print(f"  {name:<8}: mIoU={results[name]['miou_mean']:.4f} OA={results[name]['oa_mean']:.4f}")
+        print(f"  {name:<8}: mIoU={results[name]['miou']:.4f} OA={results[name]['oa']:.4f}")
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w") as f:
@@ -134,10 +134,10 @@ def main():
                    "test_area": args.test_area, "variants": results}, f, indent=2)
 
     # append (not overwrite) an ablation section to EXPERIMENTS.md
-    section = ["", "## RGB ablation (feature-ML arm, FULL13, Area-5)", "",
+    section = ["", "## RGB ablation (feature-ML arm, FULL13, Area-5; global mIoU)", "",
                "| variant | mIoU | OA |", "|---|---|---|"]
     for name, r in results.items():
-        section.append(f"| {name} | {r['miou_mean']:.4f} | {r['oa_mean']:.4f} |")
+        section.append(f"| {name} | {r['miou']:.4f} | {r['oa']:.4f} |")
     section.append("")
     os.makedirs(os.path.dirname(args.experiments_md), exist_ok=True)
     with open(args.experiments_md, "a") as f:
