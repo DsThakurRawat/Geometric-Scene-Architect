@@ -29,3 +29,10 @@ scored at full resolution by the shared `src/s3dis_evaluator.py`. Do not edit by
 | bookcase | 0.0000 | 0.0467 | 0.0254 | 0.0475 |
 | board | 0.0000 | 0.0085 | 0.0080 | 0.0082 |
 | clutter | 0.1757 | 0.1873 | 0.1818 | 0.1839 |
+
+## RGB ablation (feature-ML arm, FULL13, Area-5)
+
+| variant | mIoU | OA |
+|---|---|---|
+| xyz | 0.4466 | 0.6747 |
+| xyz+rgb | 0.4220 | 0.6698 |

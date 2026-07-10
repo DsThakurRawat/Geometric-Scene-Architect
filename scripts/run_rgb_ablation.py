@@ -13,6 +13,7 @@ here (see eval_geometry_s3dis.py). Appends a real-numbers table to EXPERIMENTS.m
 import os
 import sys
 import json
+import time
 import argparse
 import numpy as np
 
@@ -31,23 +32,42 @@ def seg_features(seg, use_rgb):
     return np.concatenate([seg["features"], seg["mean_rgb"]]) if use_rgb else seg["features"]
 
 
-def collect(predictor, areas, processed_dir, use_rgb, limit_per_area=None):
-    """Return list of (per-room segment dicts) so we can reuse geometry across variants."""
+def collect(predictor, areas, processed_dir, use_rgb, limit_per_area=None, keep_full=True):
+    """Return list of (per-room segment dicts) so we can reuse geometry across variants.
+
+    Training only consumes ``segs`` + ``gt_on_clean`` (see train_variant); the full
+    ``points``/``gt13``/``clean_pts`` arrays are only needed to upsample and score the
+    TEST rooms (see eval_variant). Holding the full point clouds for every training
+    room across all train areas exhausts RAM, so callers pass keep_full=False for the
+    train pool to drop those heavy arrays once segments are computed.
+    """
     rooms = []
     for area in areas:
         n = 0
+        t_area = time.time()
         for room_name, points, gt13 in iter_area(area, processed_dir):
             if limit_per_area is not None and n >= limit_per_area:
                 break
             n += 1
+            # Per-room progress (flushed): geometry cost scales with room size and the
+            # largest S3DIS rooms (e.g. Area_6/hallway_1, ~3.2M pts) take ~40s each in
+            # orient_normals, so a per-area-only print makes a slow-but-live run look
+            # hung. Print each room's wall time so big rooms are visibly progressing.
+            t0 = time.time()
             try:
                 geo = predictor.run_geometry(points)
                 gt_on_clean = align_labels(points[:, :3], gt13, geo["clean_pts"])
                 segs = predictor.segments(geo)
-                rooms.append({"points": points, "gt13": gt13, "clean_pts": geo["clean_pts"],
-                              "segs": segs, "gt_on_clean": gt_on_clean})
+                rooms.append({
+                    "points": points if keep_full else None,
+                    "gt13": gt13 if keep_full else None,
+                    "clean_pts": geo["clean_pts"] if keep_full else None,
+                    "segs": segs, "gt_on_clean": gt_on_clean})
+                print(f"  Area_{area}/{room_name} [{n}]: {len(geo['clean_pts'])} pts "
+                      f"{time.time() - t0:.1f}s", flush=True)
             except Exception as e:
-                print(f"  [skip] Area_{area}/{room_name}: {e}")
+                print(f"  [skip] Area_{area}/{room_name}: {e}", flush=True)
+        print(f"  Area_{area}: {n} rooms done in {time.time() - t_area:.0f}s", flush=True)
     return rooms
 
 
@@ -95,11 +115,12 @@ def main():
     args = ap.parse_args()
 
     predictor = PointPredictor()
-    print("Collecting train geometry ...")
-    train_rooms = collect(predictor, args.train_areas, args.processed_dir, True, args.limit_per_area)
-    print("Collecting test geometry ...")
+    print("Collecting train geometry ...", flush=True)
+    train_rooms = collect(predictor, args.train_areas, args.processed_dir, True,
+                          args.limit_per_area, keep_full=False)
+    print("Collecting test geometry ...", flush=True)
     test_rooms = collect(predictor, [args.test_area], args.processed_dir, True,
-                         args.limit if args.limit else None)
+                         args.limit if args.limit else None, keep_full=True)
 
     results = {}
     for use_rgb, name in [(False, "xyz"), (True, "xyz+rgb")]:
