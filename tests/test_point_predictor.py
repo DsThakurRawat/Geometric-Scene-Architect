@@ -112,3 +112,41 @@ def test_hybrid_v2_hands_vertical_planes_to_model(predictor, synthetic_room_pcd)
     assert (v2 == door).sum() > 0
     # plain hybrid trusts geometry's structural calls, so it keeps >= as many walls as v2.
     assert (hy == wall).sum() >= (v2 == wall).sum()
+
+
+def test_run_geometry_stable_structure(predictor, synthetic_room_pcd):
+    """Two run_geometry calls yield the same downsampled cloud size and the same number of
+    segments. NOTE: exact per-point segment membership is byte-identical only under
+    OMP_NUM_THREADS=1 — Open3D's RANSAC is OpenMP-nondeterministic (ties broken per-thread),
+    so scripts pin one thread via src/__init__ for reproducible numbers. The pytest process
+    loads Open3D (via conftest) before src, so it may run multithreaded; this asserts the
+    coarse structure, which is stable regardless."""
+    _, pcd = synthetic_room_pcd
+    pts = _room_points(pcd)
+    g1, g2 = predictor.run_geometry(pts), predictor.run_geometry(pts)
+    assert len(g1["clean_pts"]) == len(g2["clean_pts"]) > 0
+    assert len(predictor.segments(g1)) == len(predictor.segments(g2)) > 0
+
+
+def test_geometry_reuse_paths_agree(predictor, synthetic_room_pcd):
+    """Given ONE geometry result, every reuse entry point agrees — the real invariant the
+    4-arm eval and label-efficiency sweep rely on (they run geometry once per room and share
+    it across arms, so cross-arm identity holds by construction, not by RANSAC determinism)."""
+    _, pcd = synthetic_room_pcd
+    pts = _room_points(pcd)
+    geo = predictor.run_geometry(pts)
+
+    # geometry_only reuse returns exactly this geo's cloud
+    used_g, lbl_g = predictor.predict_from_geo(geo)
+    assert np.array_equal(used_g, geo["clean_pts"])
+    assert used_g.shape[0] == lbl_g.shape[0]
+
+    X = np.random.RandomState(0).rand(30, len(FEATURE_NAMES))
+    y = np.random.RandomState(1).randint(0, len(S3DIS_CLASSES), size=30)
+    model = FeatureML(backend="rf", n_estimators=10).fit(X, y)
+    hybrid = HybridLabeler(model, predictor)
+
+    # predict_hybrid(geo=) and predict_hybrid_from_segments must agree on the same geometry
+    _, reuse = hybrid.predict_hybrid(pts, geo=geo)
+    _, seg = hybrid.predict_hybrid_from_segments(geo["clean_pts"], predictor.segments(geo))
+    assert np.array_equal(reuse, seg)

@@ -191,7 +191,15 @@ class PointPredictor:
             points_used (M,3) downsampled coords (original frame)
             pred_labels (M,)  strings: 'ceiling'/'floor'/'wall'/'object' (default 'clutter')
         """
-        geo = self.run_geometry(points)
+        return self.predict_from_geo(self.run_geometry(points))
+
+    def predict_from_geo(self, geo: Dict[str, Any]) -> Tuple[np.ndarray, np.ndarray]:
+        """Geometry-only per-point string labels from a precomputed ``run_geometry`` result.
+
+        Lets callers that already ran geometry (e.g. the 4-arm eval, which scores every arm
+        on the SAME room geometry) avoid recomputing it. Deterministic geometry means this is
+        identical to ``predict(points)``.
+        """
         clean_pts, tree = geo["clean_pts"], geo["tree"]
         z_floor = geo["z_floor"]
 
