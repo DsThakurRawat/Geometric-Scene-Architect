@@ -58,13 +58,13 @@ def figure_per_class(hybrid_path, geometry_path, pointnet_path, out_png):
 
     arms = {}
     if hybrid and "arms" in hybrid:
+        # per_class_iou is {class: global_iou_float} (see eval_hybrid_s3dis.py)
         for arm, agg in hybrid["arms"].items():
-            arms[arm] = {c: agg["per_class_iou"].get(c, {}).get("iou_mean")
-                         for c in S3DIS_CLASSES}
+            arms[arm] = {c: agg.get("per_class_iou", {}).get(c) for c in S3DIS_CLASSES}
     if geom and "aggregate" in geom:
         # geometry is STRUCT4 — contributes only ceiling/floor/wall
         pc = geom["aggregate"].get("per_class_iou", {})
-        arms["geometry"] = {c: pc.get(c, {}).get("iou_mean") for c in S3DIS_CLASSES}
+        arms["geometry"] = {c: pc.get(c) for c in S3DIS_CLASSES}
     if pn and "per_class_iou" in pn:
         arms["pointnet++"] = {c: pn["per_class_iou"].get(c) for c in S3DIS_CLASSES}
 
