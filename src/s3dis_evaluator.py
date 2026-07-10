@@ -101,45 +101,27 @@ def confusion_matrix(
     return cm.reshape(num_classes, num_classes)
 
 
-def compute_metrics(
-    pred: np.ndarray,
-    gt: np.ndarray,
+def metrics_from_confusion(
+    cm: np.ndarray,
     class_names: List[str],
     ignore_index: Optional[int] = None,
 ) -> Dict:
     """
-    Point-level segmentation metrics.
+    Compute segmentation metrics from a confusion matrix (rows=true, cols=pred).
 
-    Args:
-        pred: (N,) integer predicted labels in ``[0, len(class_names))``.
-        gt:   (N,) integer ground-truth labels in the same space.
-        class_names: ordered list defining the label space (index == class id).
-        ignore_index: optional class id to exclude from *all* metrics (points whose
-            GT equals this are dropped before scoring).
+    Works for a SINGLE room's matrix *or* a matrix accumulated (summed) over many rooms.
+    Accumulating per-room matrices and calling this once yields the standard S3DIS
+    protocol: one global confusion matrix over all points, per-class IoU from it, then
+    the mean — which weights points, not rooms, and is comparable to published numbers.
+    (Averaging per-room mIoUs instead over-weights tiny rooms and is not comparable.)
 
-    Returns:
-        dict with keys:
-            per_class: {name: {iou, precision, recall, f1, support, tp, fp, fn}}
-            miou: mean IoU over classes present in GT (ignore_index excluded)
-            overall_accuracy: fraction of points classified correctly
-            present_classes: names of classes with support > 0 in GT
-            confusion_matrix: (C, C) list-of-lists, rows=true, cols=pred
-            n_points: number of scored points
+    mIoU averages over classes PRESENT in the GT (support > 0); ``ignore_index`` is
+    excluded from all metrics.
     """
-    n_classes = len(class_names)
-    pred = np.asarray(pred).reshape(-1)
-    gt = np.asarray(gt).reshape(-1)
-
-    if ignore_index is not None:
-        keep = gt != ignore_index
-        pred = pred[keep]
-        gt = gt[keep]
-
-    cm = confusion_matrix(pred, gt, n_classes)
-
-    tp = np.diag(cm).astype(np.float64)
-    support = cm.sum(axis=1).astype(np.float64)      # true occurrences per class
-    predicted = cm.sum(axis=0).astype(np.float64)    # predicted occurrences per class
+    cm = np.asarray(cm, dtype=np.float64)
+    tp = np.diag(cm)
+    support = cm.sum(axis=1)      # true occurrences per class
+    predicted = cm.sum(axis=0)    # predicted occurrences per class
     fp = predicted - tp
     fn = support - tp
 
@@ -168,7 +150,6 @@ def compute_metrics(
             "fp": int(fp[i]),
             "fn": int(fn[i]),
         }
-        # mIoU averages over classes PRESENT in the ground truth only (standard S3DIS).
         if support[i] > 0:
             present.append(name)
             if not np.isnan(iou):
@@ -186,6 +167,42 @@ def compute_metrics(
         "confusion_matrix": cm.astype(int).tolist(),
         "n_points": int(total),
     }
+
+
+def compute_metrics(
+    pred: np.ndarray,
+    gt: np.ndarray,
+    class_names: List[str],
+    ignore_index: Optional[int] = None,
+) -> Dict:
+    """
+    Point-level segmentation metrics for one room (a thin wrapper over
+    ``metrics_from_confusion``). To get the standard S3DIS *global* mIoU across an area,
+    sum each room's ``confusion_matrix`` and call ``metrics_from_confusion`` on the total
+    rather than averaging these per-room mIoUs.
+
+    Args:
+        pred: (N,) integer predicted labels in ``[0, len(class_names))``.
+        gt:   (N,) integer ground-truth labels in the same space.
+        class_names: ordered list defining the label space (index == class id).
+        ignore_index: optional class id to exclude from *all* metrics (points whose
+            GT equals this are dropped before scoring).
+
+    Returns:
+        dict with keys: per_class, miou, overall_accuracy, present_classes,
+        confusion_matrix (rows=true, cols=pred), n_points.
+    """
+    n_classes = len(class_names)
+    pred = np.asarray(pred).reshape(-1)
+    gt = np.asarray(gt).reshape(-1)
+
+    if ignore_index is not None:
+        keep = gt != ignore_index
+        pred = pred[keep]
+        gt = gt[keep]
+
+    cm = confusion_matrix(pred, gt, n_classes)
+    return metrics_from_confusion(cm, class_names, ignore_index)
 
 
 def print_report(metrics: Dict, class_names: List[str], title: str = "S3DIS Evaluation") -> None:

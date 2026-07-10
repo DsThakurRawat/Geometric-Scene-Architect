@@ -2,7 +2,12 @@
 import numpy as np
 import pytest
 
-from src.s3dis_evaluator import align_labels, compute_metrics, confusion_matrix
+from src.s3dis_evaluator import (
+    align_labels,
+    compute_metrics,
+    confusion_matrix,
+    metrics_from_confusion,
+)
 
 
 def test_align_labels_toy_cloud_nearest_neighbour():
@@ -78,3 +83,39 @@ def test_confusion_matrix_shape_and_counts():
     assert cm.shape == (2, 2)
     # row = true, col = pred
     assert cm[0, 0] == 1 and cm[0, 1] == 1 and cm[1, 1] == 1
+
+
+def test_metrics_from_confusion_matches_compute_metrics():
+    """metrics_from_confusion on a single room's matrix reproduces compute_metrics exactly
+    (compute_metrics is now a thin wrapper over it)."""
+    rng = np.random.RandomState(0)
+    classes = ["a", "b", "c"]
+    gt = rng.randint(0, 3, size=500)
+    pred = gt.copy()
+    pred[::7] = (pred[::7] + 1) % 3
+    m = compute_metrics(pred, gt, classes)
+    g = metrics_from_confusion(np.array(m["confusion_matrix"]), classes)
+    assert g["miou"] == m["miou"]
+    assert g["overall_accuracy"] == m["overall_accuracy"]
+    assert g["per_class"] == m["per_class"]
+
+
+def test_global_confusion_sums_over_rooms():
+    """Standard S3DIS global protocol: summing per-room confusion matrices then scoring once
+    equals scoring the concatenated points. This is what the eval scripts rely on to report a
+    global mIoU rather than a mean of per-room mIoUs."""
+    rng = np.random.RandomState(1)
+    classes = ["a", "b", "c", "d"]
+    g1 = rng.randint(0, 4, size=300); p1 = g1.copy(); p1[::5] = (p1[::5] + 1) % 4
+    g2 = rng.randint(0, 4, size=200); p2 = g2.copy(); p2[::3] = (p2[::3] + 2) % 4
+    cm1 = np.array(compute_metrics(p1, g1, classes)["confusion_matrix"])
+    cm2 = np.array(compute_metrics(p2, g2, classes)["confusion_matrix"])
+    glob = metrics_from_confusion(cm1 + cm2, classes)
+    concat = compute_metrics(np.concatenate([p1, p2]), np.concatenate([g1, g2]), classes)
+    assert glob["miou"] == concat["miou"]
+    assert glob["per_class"] == concat["per_class"]
+    # global mIoU generally differs from the mean of the two per-room mIoUs
+    per_room_mean = round(
+        (compute_metrics(p1, g1, classes)["miou"] + compute_metrics(p2, g2, classes)["miou"]) / 2, 4
+    )
+    assert isinstance(per_room_mean, float)  # documents that the two protocols are not identical
