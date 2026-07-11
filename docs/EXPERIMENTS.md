@@ -34,6 +34,43 @@ All four arms scored on the same 68 Area-5 rooms.
 | board | 0.0000 | 0.0080 | 0.0080 | 0.0080 |
 | clutter | 0.1850 | 0.1979 | 0.1976 | 0.1975 |
 
+## PointNet++ (Phase 3 — learned baseline, FULL13, Area-5; global mIoU)
+
+Pure-PyTorch PointNet++ SSG (9-dim input, 1 m / 4096-pt blocks), trained on Areas 1-4,6
+for 32 epochs on a Colab T4, predicted at full resolution on Area-5, and scored by the
+same shared `src/s3dis_evaluator.py` as the other arms. Source: `outputs/pointnet2_eval.json`.
+
+| Arm | mIoU | OA |
+|---|---|---|
+| pointnet++ | 0.3523 | 0.7008 |
+
+PointNet++ is the strongest arm overall (+0.05 mIoU over feature_ml 0.2987). It matches the
+other arms on structure (which geometry already gets for free) and wins by learning the
+object classes the geometry-scaffolded RandomForest misses.
+
+| class | feature_ml | pointnet++ |
+|---|---|---|
+| ceiling | 0.8013 | 0.8283 |
+| floor | 0.9605 | 0.9409 |
+| wall | 0.6441 | 0.5702 |
+| beam | 0.0000 | 0.0007 |
+| column | 0.0059 | 0.0164 |
+| window | 0.1138 | 0.3128 |
+| door | 0.3224 | 0.1959 |
+| table | 0.3735 | 0.5119 |
+| chair | 0.4172 | 0.4523 |
+| sofa | 0.0000 | 0.0569 |
+| bookcase | 0.0379 | 0.3326 |
+| board | 0.0080 | 0.1344 |
+| clutter | 0.1979 | 0.2267 |
+
+Takeaway: PN++ is the only arm to reach non-trivial IoU on bookcase (0.33), window (0.31),
+board (0.13) and sofa (0.06) — the objects geometry can't name and the RandomForest can't
+learn from segment features. It does NOT beat geometry on structure (wall 0.57 < 0.64;
+geometry's exact planes still win there), and beam stays ~0 for every arm. This is the
+thesis quantified: geometry scaffolds structure for free; deep learning earns its keep on
+objects, at real GPU cost.
+
 ## RGB ablation (feature-ML arm, FULL13, Area-5; global mIoU)
 
 | variant | mIoU | OA |
